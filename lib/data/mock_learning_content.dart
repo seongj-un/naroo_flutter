@@ -1,6 +1,6 @@
 import '../domain/diagnostic_models.dart';
 
-const diagnosticQuestions = [
+const mockDiagnosticQuestions = [
   DiagnosticQuestion(
     id: 'graph_1',
     concept: '함수 그래프 읽기',
@@ -36,7 +36,7 @@ const diagnosticQuestions = [
   ),
 ];
 
-const startingPointOptions = [
+const mockStartingPointOptions = [
   '식을 어떻게 바꿀지 모르겠어요',
   '함수 그래프가 나오면 막혀요',
   '도형 조건을 어디에 써야 할지 모르겠어요',
@@ -45,7 +45,7 @@ const startingPointOptions = [
   '어디서부터 다시 해야 할지 모르겠어요',
 ];
 
-const mathStatusOptions = [
+const mockMathStatusOptions = [
   '수업을 따라가고 있어요',
   '간신히 따라가고 있어요',
   '거의 놓친 것 같아요',

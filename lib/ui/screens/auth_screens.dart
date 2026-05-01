@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../data/mock_learning_content.dart';
 import '../common/naroo_widgets.dart';
 
 enum AuthMode { signup, login }
@@ -50,6 +49,7 @@ class AuthScreen extends StatefulWidget {
   const AuthScreen({
     super.key,
     required this.mode,
+    required this.mathStatusOptions,
     required this.onModeChanged,
     required this.onBack,
     required this.onSignup,
@@ -57,6 +57,7 @@ class AuthScreen extends StatefulWidget {
   });
 
   final AuthMode mode;
+  final List<String> mathStatusOptions;
   final ValueChanged<AuthMode> onModeChanged;
   final VoidCallback onBack;
   final void Function({required String nickname, required String email})
@@ -72,7 +73,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nicknameController = TextEditingController();
-  String _mathStatus = mathStatusOptions.last;
+  late String _mathStatus = widget.mathStatusOptions.last;
 
   @override
   void dispose() {
@@ -137,7 +138,7 @@ class _AuthScreenState extends State<AuthScreen> {
             const SizedBox(height: 16),
             Text('요즘 수학 상태', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            for (final status in mathStatusOptions)
+            for (final status in widget.mathStatusOptions)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: ChoiceRow(

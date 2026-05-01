@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_learning_content.dart';
+import '../data/mock_repositories.dart';
 import '../ui/screens/auth_screens.dart';
 import '../ui/screens/learning_screens.dart';
 import 'naroo_flow_controller.dart';
@@ -18,7 +18,12 @@ class _NarooShellState extends State<NarooShell> {
   @override
   void initState() {
     super.initState();
-    _controller = NarooFlowController();
+    _controller = NarooFlowController(
+      authRepository: MockAuthRepository(),
+      learningRepository: MockLearningRepository(),
+      diagnosticRepository: MockDiagnosticRepository(),
+      recoveryRepository: MockRecoveryRepository(),
+    );
   }
 
   @override
@@ -39,6 +44,7 @@ class _NarooShellState extends State<NarooShell> {
           ),
           NarooStage.auth => AuthScreen(
             mode: _controller.authMode,
+            mathStatusOptions: _controller.mathStatusOptions,
             onModeChanged: _controller.updateAuthMode,
             onBack: _controller.goToEntry,
             onSignup: _controller.submitSignup,
@@ -62,6 +68,7 @@ class _NarooShellState extends State<NarooShell> {
           ),
           NarooStage.startingPoint => StartingPointScreen(
             selectedStartingPoint: _controller.startingPoint,
+            options: _controller.startingPointOptions,
             onBack: _controller.goHome,
             onSubmit: _controller.startDiagnostic,
           ),
@@ -69,16 +76,19 @@ class _NarooShellState extends State<NarooShell> {
             key: ValueKey(_controller.currentQuestion.id),
             question: _controller.currentQuestion,
             questionIndex: _controller.currentQuestionIndex,
-            totalQuestions: diagnosticQuestions.length,
+            totalQuestions: _controller.diagnosticQuestions.length,
             onBack: _controller.backToStartingPoint,
             onSubmit: _controller.submitDiagnosticAnswer,
           ),
           NarooStage.result => WeakLinkResultScreen(
             answers: _controller.diagnosticAnswers,
+            questions: _controller.diagnosticQuestions,
+            weakLinks: _controller.weakLinks,
             onStartRecovery: _controller.startRecoveryMission,
             onSaveForLater: _controller.goToSavedProgress,
           ),
           NarooStage.recoveryMission => RecoveryMissionScreen(
+            mission: _controller.recoveryMission,
             onBack: _controller.goToResult,
             onSubmit: _controller.completeRecoveryMission,
           ),
@@ -89,6 +99,7 @@ class _NarooShellState extends State<NarooShell> {
           NarooStage.savedProgress => SavedProgressScreen(
             startingPoint: _controller.startingPoint,
             missionCompleted: _controller.missionCompleted,
+            nextAction: _controller.savedProgressNextAction,
             onHome: _controller.goHome,
             onContinue: _controller.continueSavedProgress,
           ),

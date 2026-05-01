@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/learning_models.dart';
 import '../common/naroo_widgets.dart';
 
 class RecoveryMissionScreen extends StatefulWidget {
   const RecoveryMissionScreen({
     super.key,
+    required this.mission,
     required this.onBack,
     required this.onSubmit,
   });
 
+  final RecoveryMission mission;
   final VoidCallback onBack;
   final VoidCallback onSubmit;
 
@@ -34,15 +37,18 @@ class _RecoveryMissionScreenState extends State<RecoveryMissionScreen> {
           TopBar(onBack: widget.onBack),
           const SizedBox(height: 24),
           Text(
-            '함수 그래프 읽기 10분 복구',
+            widget.mission.title,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 8),
-          Text('예상 시간 10분', style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            widget.mission.estimatedTime,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
           const SizedBox(height: 20),
           PlainPanel(
             child: Text(
-              '그래프를 볼 때는 먼저 x값이 오른쪽으로 움직일수록 y값이 위로 가는지, 아래로 가는지 확인해요.',
+              widget.mission.explanation,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
           ),
@@ -50,7 +56,7 @@ class _RecoveryMissionScreenState extends State<RecoveryMissionScreen> {
           Text('작은 도전', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'x가 1에서 3으로 갈 때 y가 2에서 6으로 갔다면, y는 얼마나 변했나요?',
+            widget.mission.challenge,
             style: Theme.of(context).textTheme.bodyLarge,
           ),
           const SizedBox(height: 12),
@@ -62,7 +68,7 @@ class _RecoveryMissionScreenState extends State<RecoveryMissionScreen> {
             const SizedBox(height: 12),
             PlainPanel(
               child: Text(
-                '첫 단서는 x값이 커질 때 y가 어떻게 움직이는지예요.',
+                widget.mission.hint,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
             ),

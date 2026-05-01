@@ -1,7 +1,11 @@
 import 'package:flutter/foundation.dart';
 
-import '../data/mock_learning_content.dart';
 import '../domain/diagnostic_models.dart';
+import '../domain/learning_models.dart';
+import '../domain/repositories/auth_repository.dart';
+import '../domain/repositories/diagnostic_repository.dart';
+import '../domain/repositories/learning_repository.dart';
+import '../domain/repositories/recovery_repository.dart';
 import '../ui/screens/auth_screens.dart';
 
 enum NarooStage {
@@ -18,6 +22,18 @@ enum NarooStage {
 }
 
 class NarooFlowController extends ChangeNotifier {
+  NarooFlowController({
+    required this.authRepository,
+    required this.learningRepository,
+    required this.diagnosticRepository,
+    required this.recoveryRepository,
+  });
+
+  final AuthRepository authRepository;
+  final LearningRepository learningRepository;
+  final DiagnosticRepository diagnosticRepository;
+  final RecoveryRepository recoveryRepository;
+
   NarooStage stage = NarooStage.entry;
   AuthMode authMode = AuthMode.signup;
   String nickname = '나루';
@@ -27,6 +43,21 @@ class NarooFlowController extends ChangeNotifier {
   final Map<String, DiagnosticAnswer> diagnosticAnswers = {};
   bool missionCompleted = false;
   bool emailVerified = false;
+
+  List<String> get mathStatusOptions => learningRepository.mathStatusOptions;
+
+  List<String> get startingPointOptions =>
+      learningRepository.startingPointOptions;
+
+  List<DiagnosticQuestion> get diagnosticQuestions =>
+      diagnosticRepository.questions;
+
+  List<WeakLink> get weakLinks => diagnosticRepository.weakLinks;
+
+  RecoveryMission get recoveryMission => recoveryRepository.firstMission;
+
+  String get savedProgressNextAction =>
+      recoveryRepository.nextAction(missionCompleted: missionCompleted);
 
   DiagnosticQuestion get currentQuestion =>
       diagnosticQuestions[currentQuestionIndex];
@@ -51,22 +82,31 @@ class NarooFlowController extends ChangeNotifier {
   }
 
   void submitSignup({required String nickname, required String email}) {
-    this.nickname = nickname.isEmpty ? '나루' : nickname;
-    this.email = email;
-    emailVerified = false;
+    final profile = authRepository.signUp(nickname: nickname, email: email);
+    this.nickname = profile.nickname;
+    this.email = profile.email;
+    emailVerified = profile.emailVerified;
     stage = NarooStage.emailVerification;
     notifyListeners();
   }
 
   void submitLogin({required String loginId}) {
-    nickname = loginId.isEmpty ? '나루' : loginId;
-    emailVerified = true;
+    final profile = authRepository.login(loginId: loginId);
+    nickname = profile.nickname;
+    email = profile.email;
+    emailVerified = profile.emailVerified;
     stage = NarooStage.home;
     notifyListeners();
   }
 
   void completeVerification() {
-    emailVerified = true;
+    final profile = authRepository.verifyEmail(
+      nickname: nickname,
+      email: email,
+    );
+    nickname = profile.nickname;
+    email = profile.email;
+    emailVerified = profile.emailVerified;
     stage = NarooStage.home;
     notifyListeners();
   }

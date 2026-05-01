@@ -7,12 +7,14 @@ class SavedProgressScreen extends StatelessWidget {
     super.key,
     required this.startingPoint,
     required this.missionCompleted,
+    required this.nextAction,
     required this.onHome,
     required this.onContinue,
   });
 
   final String? startingPoint;
   final bool missionCompleted;
+  final String nextAction;
   final VoidCallback onHome;
   final VoidCallback onContinue;
 
@@ -56,12 +58,7 @@ class SavedProgressScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  missionCompleted
-                      ? '다음에는 식 변형부터 이어갈게요.'
-                      : '함수 그래프 읽기 10분 복구를 이어갈 수 있어요.',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
+                Text(nextAction, style: Theme.of(context).textTheme.bodyLarge),
               ],
             ),
           ),

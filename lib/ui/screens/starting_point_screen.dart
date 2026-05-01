@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
-import '../../data/mock_learning_content.dart';
 import '../common/naroo_widgets.dart';
 
 class StartingPointScreen extends StatefulWidget {
   const StartingPointScreen({
     super.key,
     required this.selectedStartingPoint,
+    required this.options,
     required this.onBack,
     required this.onSubmit,
   });
 
   final String? selectedStartingPoint;
+  final List<String> options;
   final VoidCallback onBack;
   final ValueChanged<String> onSubmit;
 
@@ -39,7 +40,7 @@ class _StartingPointScreenState extends State<StartingPointScreen> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
-          for (final startingPoint in startingPointOptions)
+          for (final startingPoint in widget.options)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: ChoiceRow(
