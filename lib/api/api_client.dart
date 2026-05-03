@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
 import '../auth/auth_store.dart';
 import 'api_types.dart';
 
@@ -7,14 +11,110 @@ class ApiClientConfig {
   final String baseUrl;
 }
 
-abstract interface class ApiClient {
-  Future<AuthSession> signUp(SignUpRequest request);
+class ApiClient {
+  ApiClient({
+    required this.authStore,
+    this.config = const ApiClientConfig(),
+    http.Client? httpClient,
+  }) : _httpClient = httpClient ?? http.Client();
 
-  Future<AuthSession> login(LoginRequest request);
+  final ApiClientConfig config;
+  final AuthStore authStore;
+  final http.Client _httpClient;
 
-  Future<void> verifyEmail(String token);
+  Future<T> get<T>(
+    String path, {
+    required T Function(Object? data) decode,
+    bool auth = true,
+  }) {
+    return _request('GET', path, decode: decode, auth: auth);
+  }
 
-  Future<void> saveStartingPoint(StartingPointRequest request);
+  Future<T> post<T>(
+    String path, {
+    JsonMap? body,
+    required T Function(Object? data) decode,
+    bool auth = true,
+  }) {
+    return _request('POST', path, body: body, decode: decode, auth: auth);
+  }
+
+  Future<T> _request<T>(
+    String method,
+    String path, {
+    JsonMap? body,
+    required T Function(Object? data) decode,
+    required bool auth,
+  }) async {
+    final uri = Uri.parse('${config.baseUrl}$path');
+    final headers = <String, String>{
+      'Accept': 'application/json',
+      if (body != null) 'Content-Type': 'application/json',
+      if (auth && authStore.accessToken != null)
+        'Authorization': 'Bearer ${authStore.accessToken}',
+    };
+
+    final response = switch (method) {
+      'GET' => await _httpClient.get(uri, headers: headers),
+      'POST' => await _httpClient.post(
+        uri,
+        headers: headers,
+        body: body == null ? null : jsonEncode(body),
+      ),
+      _ => throw StateError('Unsupported method: $method'),
+    };
+
+    return _decodeWrappedResponse(response, decode);
+  }
+
+  T _decodeWrappedResponse<T>(
+    http.Response response,
+    T Function(Object? data) decode,
+  ) {
+    final payload = _decodeJsonObject(response);
+    final success = payload['success'];
+    final data = payload['data'];
+
+    if (success == true &&
+        response.statusCode >= 200 &&
+        response.statusCode < 300) {
+      return decode(data);
+    }
+
+    throw ApiError(
+      status: response.statusCode,
+      errorCode: _extractErrorCode(data) ?? 'GLOBAL_BAD_RESPONSE',
+    );
+  }
+
+  JsonMap _decodeJsonObject(http.Response response) {
+    try {
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      if (decoded is Map) {
+        return decoded.map((key, value) => MapEntry(key.toString(), value));
+      }
+    } on FormatException {
+      throw ApiError(
+        status: response.statusCode,
+        errorCode: 'GLOBAL_BAD_RESPONSE',
+      );
+    }
+
+    throw ApiError(
+      status: response.statusCode,
+      errorCode: 'GLOBAL_BAD_RESPONSE',
+    );
+  }
+
+  String? _extractErrorCode(Object? data) {
+    if (data is Map<String, Object?>) {
+      final errorCode = data['errorCode'];
+      if (errorCode is String) {
+        return errorCode;
+      }
+    }
+    return null;
+  }
 }
 
 class SignUpRequest {

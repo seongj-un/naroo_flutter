@@ -3,5 +3,5 @@ import 'package:flutter/material.dart';
 import 'naroo_app.dart';
 
 void main() {
-  runApp(const NarooApp());
+  runApp(NarooApp());
 }

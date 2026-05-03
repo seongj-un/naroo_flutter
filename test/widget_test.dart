@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:naroo_flutter/app/naroo_dependencies.dart';
 import 'package:naroo_flutter/naroo_app.dart';
 
 void main() {
   testWidgets('starts from the Naroo entry screen', (tester) async {
-    await tester.pumpWidget(const NarooApp());
+    await tester.pumpWidget(_mockApp());
 
     expect(find.text('Naroo'), findsOneWidget);
     expect(find.text('수학을 다시 시작할 위치를 5분 안에 찾기'), findsOneWidget);
@@ -13,7 +14,7 @@ void main() {
   });
 
   testWidgets('signup flow reaches email verification', (tester) async {
-    await tester.pumpWidget(const NarooApp());
+    await tester.pumpWidget(_mockApp());
 
     await tester.tap(find.text('시작 위치 찾기'));
     await tester.pumpAndSettle();
@@ -46,7 +47,7 @@ void main() {
   });
 
   testWidgets('login flow reaches learning home', (tester) async {
-    await tester.pumpWidget(const NarooApp());
+    await tester.pumpWidget(_mockApp());
 
     await _login(tester);
 
@@ -58,7 +59,7 @@ void main() {
     tester,
   ) async {
     await _setTallPhoneViewport(tester);
-    await tester.pumpWidget(const NarooApp());
+    await tester.pumpWidget(_mockApp());
 
     await _login(tester);
     await tester.tap(find.text('시작 위치 고르기'));
@@ -135,6 +136,10 @@ void main() {
     expect(find.text('마지막 위치를 저장해뒀어요.'), findsOneWidget);
     expect(find.text('완료한 미션 1개'), findsOneWidget);
   });
+}
+
+Widget _mockApp() {
+  return NarooApp(dependencies: NarooDependencies.mock());
 }
 
 Future<void> _scrollToText(WidgetTester tester, String text) async {

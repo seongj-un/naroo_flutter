@@ -1,9 +1,26 @@
 import '../learning_models.dart';
 
 abstract interface class AuthRepository {
-  AuthProfile signUp({required String nickname, required String email});
+  Future<AuthProfile> signUp({
+    required String loginId,
+    required String email,
+    required String password,
+    required String nickname,
+    required String mathStatus,
+  });
 
-  AuthProfile login({required String loginId});
+  Future<AuthProfile> login({
+    required String loginId,
+    required String password,
+  });
 
-  AuthProfile verifyEmail({required String nickname, required String email});
+  Future<AuthProfile> verifyEmail({
+    required String token,
+    required String nickname,
+    required String email,
+  });
+
+  Future<void> reissue();
+
+  Future<AuthProfile> me();
 }

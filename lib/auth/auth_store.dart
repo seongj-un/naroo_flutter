@@ -7,7 +7,7 @@ class AuthUser {
     required this.emailVerified,
   });
 
-  final int id;
+  final String id;
   final String loginId;
   final String nickname;
   final String role;
@@ -33,6 +33,14 @@ class AuthStore {
 
   void setSession(AuthSession session) {
     _session = session;
+  }
+
+  void updateAccessToken(String accessToken) {
+    final currentSession = _session;
+    if (currentSession == null) {
+      return;
+    }
+    _session = AuthSession(accessToken: accessToken, user: currentSession.user);
   }
 
   void clear() {

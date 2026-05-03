@@ -43,6 +43,8 @@ class NarooFlowController extends ChangeNotifier {
   final Map<String, DiagnosticAnswer> diagnosticAnswers = {};
   bool missionCompleted = false;
   bool emailVerified = false;
+  bool isAuthBusy = false;
+  String? authErrorMessage;
 
   List<String> get mathStatusOptions => learningRepository.mathStatusOptions;
 
@@ -81,34 +83,56 @@ class NarooFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void submitSignup({required String nickname, required String email}) {
-    final profile = authRepository.signUp(nickname: nickname, email: email);
-    this.nickname = profile.nickname;
-    this.email = profile.email;
-    emailVerified = profile.emailVerified;
-    stage = NarooStage.emailVerification;
-    notifyListeners();
+  Future<void> submitSignup({
+    required String loginId,
+    required String email,
+    required String password,
+    required String nickname,
+    required String mathStatus,
+  }) {
+    return _runAuthAction(() async {
+      final profile = await authRepository.signUp(
+        loginId: loginId,
+        email: email,
+        password: password,
+        nickname: nickname,
+        mathStatus: mathStatus,
+      );
+      this.nickname = profile.nickname;
+      this.email = profile.email;
+      emailVerified = profile.emailVerified;
+      stage = NarooStage.emailVerification;
+    });
   }
 
-  void submitLogin({required String loginId}) {
-    final profile = authRepository.login(loginId: loginId);
-    nickname = profile.nickname;
-    email = profile.email;
-    emailVerified = profile.emailVerified;
-    stage = NarooStage.home;
-    notifyListeners();
+  Future<void> submitLogin({
+    required String loginId,
+    required String password,
+  }) {
+    return _runAuthAction(() async {
+      final profile = await authRepository.login(
+        loginId: loginId,
+        password: password,
+      );
+      nickname = profile.nickname;
+      email = profile.email;
+      emailVerified = profile.emailVerified;
+      stage = NarooStage.home;
+    });
   }
 
-  void completeVerification() {
-    final profile = authRepository.verifyEmail(
-      nickname: nickname,
-      email: email,
-    );
-    nickname = profile.nickname;
-    email = profile.email;
-    emailVerified = profile.emailVerified;
-    stage = NarooStage.home;
-    notifyListeners();
+  Future<void> completeVerification(String token) {
+    return _runAuthAction(() async {
+      final profile = await authRepository.verifyEmail(
+        token: token,
+        nickname: nickname,
+        email: email,
+      );
+      nickname = profile.nickname;
+      email = profile.email;
+      emailVerified = profile.emailVerified;
+      stage = NarooStage.home;
+    });
   }
 
   void skipVerificationForNow() {
@@ -182,5 +206,20 @@ class NarooFlowController extends ChangeNotifier {
   void continueSavedProgress() {
     stage = missionCompleted ? NarooStage.home : NarooStage.recoveryMission;
     notifyListeners();
+  }
+
+  Future<void> _runAuthAction(Future<void> Function() action) async {
+    isAuthBusy = true;
+    authErrorMessage = null;
+    notifyListeners();
+
+    try {
+      await action();
+    } catch (_) {
+      authErrorMessage = '기록을 불러오지 못했어요. 다시 시도해 주세요';
+    } finally {
+      isAuthBusy = false;
+      notifyListeners();
+    }
   }
 }

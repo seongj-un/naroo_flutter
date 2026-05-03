@@ -8,7 +8,13 @@ import 'mock_learning_content.dart';
 
 class MockAuthRepository implements AuthRepository {
   @override
-  AuthProfile signUp({required String nickname, required String email}) {
+  Future<AuthProfile> signUp({
+    required String loginId,
+    required String email,
+    required String password,
+    required String nickname,
+    required String mathStatus,
+  }) async {
     return AuthProfile(
       nickname: nickname.isEmpty ? '나루' : nickname,
       email: email,
@@ -17,7 +23,10 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
-  AuthProfile login({required String loginId}) {
+  Future<AuthProfile> login({
+    required String loginId,
+    required String password,
+  }) async {
     return AuthProfile(
       nickname: loginId.isEmpty ? '나루' : loginId,
       email: '',
@@ -26,8 +35,20 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
-  AuthProfile verifyEmail({required String nickname, required String email}) {
+  Future<AuthProfile> verifyEmail({
+    required String token,
+    required String nickname,
+    required String email,
+  }) async {
     return AuthProfile(nickname: nickname, email: email, emailVerified: true);
+  }
+
+  @override
+  Future<void> reissue() async {}
+
+  @override
+  Future<AuthProfile> me() async {
+    return const AuthProfile(nickname: '나루', email: '', emailVerified: true);
   }
 }
 

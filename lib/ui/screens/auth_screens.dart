@@ -50,6 +50,8 @@ class AuthScreen extends StatefulWidget {
     super.key,
     required this.mode,
     required this.mathStatusOptions,
+    required this.isLoading,
+    required this.errorMessage,
     required this.onModeChanged,
     required this.onBack,
     required this.onSignup,
@@ -58,11 +60,23 @@ class AuthScreen extends StatefulWidget {
 
   final AuthMode mode;
   final List<String> mathStatusOptions;
+  final bool isLoading;
+  final String? errorMessage;
   final ValueChanged<AuthMode> onModeChanged;
   final VoidCallback onBack;
-  final void Function({required String nickname, required String email})
+  final Future<void> Function({
+    required String loginId,
+    required String email,
+    required String password,
+    required String nickname,
+    required String mathStatus,
+  })
   onSignup;
-  final void Function({required String loginId}) onLogin;
+  final Future<void> Function({
+    required String loginId,
+    required String password,
+  })
+  onLogin;
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -104,6 +118,13 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           const SizedBox(height: 24),
           _ModeSwitch(mode: widget.mode, onChanged: widget.onModeChanged),
+          if (widget.isLoading || widget.errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              widget.isLoading ? '기록을 확인하는 중...' : widget.errorMessage!,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
           const SizedBox(height: 24),
           NarooTextField(
             controller: _loginIdController,
@@ -150,16 +171,24 @@ class _AuthScreenState extends State<AuthScreen> {
           ],
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () {
-              if (isSignup) {
-                widget.onSignup(
-                  nickname: _nicknameController.text.trim(),
-                  email: _emailController.text.trim(),
-                );
-                return;
-              }
-              widget.onLogin(loginId: _loginIdController.text.trim());
-            },
+            onPressed: widget.isLoading
+                ? null
+                : () async {
+                    if (isSignup) {
+                      await widget.onSignup(
+                        loginId: _loginIdController.text.trim(),
+                        nickname: _nicknameController.text.trim(),
+                        email: _emailController.text.trim(),
+                        password: _passwordController.text,
+                        mathStatus: _mathStatus,
+                      );
+                      return;
+                    }
+                    await widget.onLogin(
+                      loginId: _loginIdController.text.trim(),
+                      password: _passwordController.text,
+                    );
+                  },
             child: Text(isSignup ? '내 기록 만들기' : '기록 불러오기'),
           ),
         ],
@@ -172,12 +201,16 @@ class EmailVerificationScreen extends StatefulWidget {
   const EmailVerificationScreen({
     super.key,
     required this.email,
+    required this.isLoading,
+    required this.errorMessage,
     required this.onVerify,
     required this.onLater,
   });
 
   final String email;
-  final VoidCallback onVerify;
+  final bool isLoading;
+  final String? errorMessage;
+  final Future<void> Function(String token) onVerify;
   final VoidCallback onLater;
 
   @override
@@ -219,16 +252,25 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             label: '인증 코드',
             textInputAction: TextInputAction.done,
           ),
-          if (_message != null) ...[
+          if (widget.isLoading ||
+              widget.errorMessage != null ||
+              _message != null) ...[
             const SizedBox(height: 8),
-            Text(_message!, style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              widget.isLoading
+                  ? '기록을 확인하는 중...'
+                  : widget.errorMessage ?? _message!,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ],
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () {
-              setState(() => _message = '인증을 확인하는 중...');
-              widget.onVerify();
-            },
+            onPressed: widget.isLoading
+                ? null
+                : () async {
+                    setState(() => _message = '인증을 확인하는 중...');
+                    await widget.onVerify(_tokenController.text.trim());
+                  },
             child: const Text('인증 완료하기'),
           ),
           const SizedBox(height: 8),

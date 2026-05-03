@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_repositories.dart';
 import '../ui/screens/auth_screens.dart';
 import '../ui/screens/learning_screens.dart';
+import 'naroo_dependencies.dart';
 import 'naroo_flow_controller.dart';
 
 class NarooShell extends StatefulWidget {
-  const NarooShell({super.key});
+  const NarooShell({super.key, required this.dependencies});
+
+  final NarooDependencies dependencies;
 
   @override
   State<NarooShell> createState() => _NarooShellState();
@@ -19,10 +21,10 @@ class _NarooShellState extends State<NarooShell> {
   void initState() {
     super.initState();
     _controller = NarooFlowController(
-      authRepository: MockAuthRepository(),
-      learningRepository: MockLearningRepository(),
-      diagnosticRepository: MockDiagnosticRepository(),
-      recoveryRepository: MockRecoveryRepository(),
+      authRepository: widget.dependencies.authRepository,
+      learningRepository: widget.dependencies.learningRepository,
+      diagnosticRepository: widget.dependencies.diagnosticRepository,
+      recoveryRepository: widget.dependencies.recoveryRepository,
     );
   }
 
@@ -45,6 +47,8 @@ class _NarooShellState extends State<NarooShell> {
           NarooStage.auth => AuthScreen(
             mode: _controller.authMode,
             mathStatusOptions: _controller.mathStatusOptions,
+            isLoading: _controller.isAuthBusy,
+            errorMessage: _controller.authErrorMessage,
             onModeChanged: _controller.updateAuthMode,
             onBack: _controller.goToEntry,
             onSignup: _controller.submitSignup,
@@ -52,6 +56,8 @@ class _NarooShellState extends State<NarooShell> {
           ),
           NarooStage.emailVerification => EmailVerificationScreen(
             email: _controller.email,
+            isLoading: _controller.isAuthBusy,
+            errorMessage: _controller.authErrorMessage,
             onVerify: _controller.completeVerification,
             onLater: _controller.skipVerificationForNow,
           ),
