@@ -39,12 +39,19 @@ class NarooFlowController extends ChangeNotifier {
   String nickname = '나루';
   String email = '';
   String? startingPoint;
+  String? diagnosticSessionId;
   int currentQuestionIndex = 0;
   final Map<String, DiagnosticAnswer> diagnosticAnswers = {};
+  List<DiagnosticQuestion> _diagnosticQuestions = [];
+  DiagnosticResult? diagnosticResult;
+  RecoveryMission? activeRecoveryMission;
+  RecoverySubmissionFeedback? recoveryFeedback;
   bool missionCompleted = false;
   bool emailVerified = false;
   bool isAuthBusy = false;
+  bool isFlowBusy = false;
   String? authErrorMessage;
+  String? flowErrorMessage;
 
   List<String> get mathStatusOptions => learningRepository.mathStatusOptions;
 
@@ -52,11 +59,24 @@ class NarooFlowController extends ChangeNotifier {
       learningRepository.startingPointOptions;
 
   List<DiagnosticQuestion> get diagnosticQuestions =>
-      diagnosticRepository.questions;
+      _diagnosticQuestions.isEmpty
+      ? diagnosticRepository.questions
+      : _diagnosticQuestions;
 
-  List<WeakLink> get weakLinks => diagnosticRepository.weakLinks;
+  List<WeakLink> get weakLinks {
+    final result = diagnosticResult;
+    if (result == null) {
+      return diagnosticRepository.weakLinks;
+    }
+    return result.weakLinks.isEmpty
+        ? [WeakLink(title: result.primaryRecoveryConcept, body: result.summary)]
+        : result.weakLinks
+              .map((link) => WeakLink(title: link, body: result.summary))
+              .toList(growable: false);
+  }
 
-  RecoveryMission get recoveryMission => recoveryRepository.firstMission;
+  RecoveryMission get recoveryMission =>
+      activeRecoveryMission ?? recoveryRepository.firstMission;
 
   String get savedProgressNextAction =>
       recoveryRepository.nextAction(missionCompleted: missionCompleted);
@@ -65,6 +85,7 @@ class NarooFlowController extends ChangeNotifier {
       diagnosticQuestions[currentQuestionIndex];
 
   bool get hasDiagnosticResult =>
+      diagnosticResult != null ||
       diagnosticAnswers.length == diagnosticQuestions.length;
 
   void openAuth(AuthMode mode) {
@@ -117,7 +138,7 @@ class NarooFlowController extends ChangeNotifier {
       nickname = profile.nickname;
       email = profile.email;
       emailVerified = profile.emailVerified;
-      stage = NarooStage.home;
+      await _loadLearningHome();
     });
   }
 
@@ -131,7 +152,7 @@ class NarooFlowController extends ChangeNotifier {
       nickname = profile.nickname;
       email = profile.email;
       emailVerified = profile.emailVerified;
-      stage = NarooStage.home;
+      await _loadLearningHome();
     });
   }
 
@@ -150,18 +171,33 @@ class NarooFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void goHome() {
-    stage = NarooStage.home;
-    notifyListeners();
+  Future<void> goHome() {
+    return _runFlowAction(() async {
+      await _loadLearningHome();
+    });
   }
 
-  void startDiagnostic(String startingPoint) {
-    this.startingPoint = startingPoint;
-    currentQuestionIndex = 0;
-    diagnosticAnswers.clear();
-    missionCompleted = false;
-    stage = NarooStage.diagnostic;
-    notifyListeners();
+  Future<void> startDiagnostic(String startingPoint) {
+    return _runFlowAction(() async {
+      this.startingPoint = startingPoint;
+      currentQuestionIndex = 0;
+      diagnosticAnswers.clear();
+      diagnosticResult = null;
+      activeRecoveryMission = null;
+      recoveryFeedback = null;
+      missionCompleted = false;
+
+      await diagnosticRepository.selectStartingPoint(startingPoint);
+      final session = await diagnosticRepository.createSession();
+      diagnosticSessionId = session.id;
+      _diagnosticQuestions = await diagnosticRepository.getQuestions(
+        session.id,
+      );
+      if (_diagnosticQuestions.isEmpty) {
+        throw StateError('Diagnostic questions are empty.');
+      }
+      stage = NarooStage.diagnostic;
+    });
   }
 
   void backToStartingPoint() {
@@ -169,17 +205,30 @@ class NarooFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void submitDiagnosticAnswer(DiagnosticQuestion question, String? answerId) {
+  Future<void> submitDiagnosticAnswer(
+    DiagnosticQuestion question,
+    String? answerId,
+  ) async {
     diagnosticAnswers[question.id] = answerId == null
         ? const DiagnosticAnswer.unknown()
         : DiagnosticAnswer.selected(answerId);
 
     if (currentQuestionIndex == diagnosticQuestions.length - 1) {
-      stage = NarooStage.result;
+      await _runFlowAction(() async {
+        final sessionId = diagnosticSessionId;
+        if (sessionId == null) {
+          throw StateError('Diagnostic session is missing.');
+        }
+        diagnosticResult = await diagnosticRepository.submitAnswers(
+          diagnosticSessionId: sessionId,
+          answers: diagnosticAnswers,
+        );
+        stage = NarooStage.result;
+      });
     } else {
       currentQuestionIndex += 1;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   void goToResult() {
@@ -187,15 +236,30 @@ class NarooFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void startRecoveryMission() {
-    stage = NarooStage.recoveryMission;
-    notifyListeners();
+  Future<void> startRecoveryMission() {
+    return _runFlowAction(() async {
+      final sessionId = diagnosticResult?.diagnosticSessionId;
+      if (sessionId == null || sessionId.isEmpty) {
+        throw StateError('Diagnostic result is missing.');
+      }
+      activeRecoveryMission = await recoveryRepository.createMission(
+        diagnosticSessionId: sessionId,
+      );
+      stage = NarooStage.recoveryMission;
+    });
   }
 
-  void completeRecoveryMission() {
-    missionCompleted = true;
-    stage = NarooStage.missionFeedback;
-    notifyListeners();
+  Future<void> completeRecoveryMission(String answerText) {
+    return _runFlowAction(() async {
+      final mission = activeRecoveryMission ?? recoveryRepository.firstMission;
+      recoveryFeedback = await recoveryRepository.submitMission(
+        recoveryMissionId: mission.id,
+        answerText: answerText,
+      );
+      activeRecoveryMission = recoveryFeedback?.mission ?? mission;
+      missionCompleted = true;
+      stage = NarooStage.missionFeedback;
+    });
   }
 
   void goToSavedProgress() {
@@ -221,5 +285,47 @@ class NarooFlowController extends ChangeNotifier {
       isAuthBusy = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _runFlowAction(Future<void> Function() action) async {
+    isFlowBusy = true;
+    flowErrorMessage = null;
+    notifyListeners();
+
+    try {
+      await action();
+    } catch (_) {
+      flowErrorMessage = '다음 기록을 불러오지 못했어요. 다시 시도해 주세요';
+    } finally {
+      isFlowBusy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadLearningHome() async {
+    final home = await learningRepository.getLearningHome();
+    nickname = home.nickname;
+    emailVerified = home.emailVerified;
+    activeRecoveryMission = home.todayMission;
+
+    final latestDiagnostic = home.latestDiagnostic;
+    if (latestDiagnostic != null) {
+      diagnosticSessionId = latestDiagnostic.diagnosticSessionId;
+      diagnosticResult = DiagnosticResult(
+        diagnosticSessionId: latestDiagnostic.diagnosticSessionId,
+        mathArea: latestDiagnostic.mathArea,
+        status: latestDiagnostic.status,
+        totalQuestionCount: latestDiagnostic.totalQuestionCount,
+        correctCount: latestDiagnostic.correctCount,
+        wrongCount: latestDiagnostic.wrongCount,
+        unknownCount: latestDiagnostic.unknownCount,
+        weakLinks: latestDiagnostic.weakLinks,
+        primaryRecoveryConcept: latestDiagnostic.primaryRecoveryConcept,
+        summary: latestDiagnostic.summary,
+      );
+    }
+
+    missionCompleted = home.todayMission?.status == 'COMPLETED';
+    stage = NarooStage.home;
   }
 }

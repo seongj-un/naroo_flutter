@@ -45,6 +45,7 @@ class ApiClient {
     JsonMap? body,
     required T Function(Object? data) decode,
     required bool auth,
+    bool retryOnUnauthorized = true,
   }) async {
     final uri = Uri.parse('${config.baseUrl}$path');
     final headers = <String, String>{
@@ -64,7 +65,48 @@ class ApiClient {
       _ => throw StateError('Unsupported method: $method'),
     };
 
+    if (auth &&
+        retryOnUnauthorized &&
+        response.statusCode == 401 &&
+        await _tryReissueAccessToken()) {
+      return _request(
+        method,
+        path,
+        body: body,
+        decode: decode,
+        auth: auth,
+        retryOnUnauthorized: false,
+      );
+    }
+
     return _decodeWrappedResponse(response, decode);
+  }
+
+  Future<bool> _tryReissueAccessToken() async {
+    try {
+      final accessToken = await _request(
+        'POST',
+        '/api/auth/reissue',
+        decode: (data) {
+          final object = _requireObject(data);
+          final accessToken = object['accessToken'];
+          if (accessToken is String) {
+            return accessToken;
+          }
+          throw const ApiError(
+            status: 200,
+            errorCode: 'AUTH_ACCESS_TOKEN_MISSING',
+          );
+        },
+        auth: false,
+        retryOnUnauthorized: false,
+      );
+      authStore.updateAccessToken(accessToken);
+      return true;
+    } catch (_) {
+      authStore.clear();
+      return false;
+    }
   }
 
   T _decodeWrappedResponse<T>(
@@ -107,13 +149,20 @@ class ApiClient {
   }
 
   String? _extractErrorCode(Object? data) {
-    if (data is Map<String, Object?>) {
+    if (data is Map) {
       final errorCode = data['errorCode'];
       if (errorCode is String) {
         return errorCode;
       }
     }
     return null;
+  }
+
+  JsonMap _requireObject(Object? data) {
+    if (data is Map) {
+      return data.map((key, value) => MapEntry(key.toString(), value));
+    }
+    throw const ApiError(status: 200, errorCode: 'GLOBAL_BAD_RESPONSE');
   }
 }
 

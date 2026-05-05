@@ -25,18 +25,21 @@ class AuthSession {
 
 class AuthStore {
   AuthSession? _session;
+  String? _accessToken;
 
-  String? get accessToken => _session?.accessToken;
+  String? get accessToken => _accessToken;
   AuthUser? get user => _session?.user;
-  bool get isAuthenticated => _session != null;
+  bool get isAuthenticated => _accessToken != null;
   bool get isAdmin => _session?.user.isAdmin ?? false;
 
   void setSession(AuthSession session) {
     _session = session;
+    _accessToken = session.accessToken;
   }
 
   void updateAccessToken(String accessToken) {
     final currentSession = _session;
+    _accessToken = accessToken;
     if (currentSession == null) {
       return;
     }
@@ -45,5 +48,6 @@ class AuthStore {
 
   void clear() {
     _session = null;
+    _accessToken = null;
   }
 }

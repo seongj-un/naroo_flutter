@@ -7,30 +7,19 @@ import '../common/naroo_widgets.dart';
 class WeakLinkResultScreen extends StatelessWidget {
   const WeakLinkResultScreen({
     super.key,
-    required this.answers,
-    required this.questions,
+    required this.result,
     required this.weakLinks,
     required this.onStartRecovery,
     required this.onSaveForLater,
   });
 
-  final Map<String, DiagnosticAnswer> answers;
-  final List<DiagnosticQuestion> questions;
+  final DiagnosticResult result;
   final List<WeakLink> weakLinks;
   final VoidCallback onStartRecovery;
   final VoidCallback onSaveForLater;
 
   @override
   Widget build(BuildContext context) {
-    final correctCount = questions.where((question) {
-      final answer = answers[question.id];
-      return answer?.answerId == question.correctAnswerId;
-    }).length;
-    final unknownCount = answers.values
-        .where((answer) => answer.isUnknown)
-        .length;
-    final wrongCount = answers.length - correctCount - unknownCount;
-
     return NarooPage(
       child: ListView(
         children: [
@@ -45,10 +34,10 @@ class WeakLinkResultScreen extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              StatPill(label: '전체', value: '${questions.length}'),
-              StatPill(label: '연결됨', value: '$correctCount'),
-              StatPill(label: '다시 볼 곳', value: '$wrongCount'),
-              StatPill(label: '모름', value: '$unknownCount'),
+              StatPill(label: '전체', value: '${result.totalQuestionCount}'),
+              StatPill(label: '연결됨', value: '${result.correctCount}'),
+              StatPill(label: '다시 볼 곳', value: '${result.wrongCount}'),
+              StatPill(label: '모름', value: '${result.unknownCount}'),
             ],
           ),
           const SizedBox(height: 24),
@@ -66,7 +55,7 @@ class WeakLinkResultScreen extends StatelessWidget {
                 Text('첫 복구 미션', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
-                  '함수 그래프 읽기 10분 복구',
+                  result.nextMissionTitle ?? '첫 10분 회복 미션',
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ],

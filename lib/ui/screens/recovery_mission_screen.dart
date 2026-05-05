@@ -13,7 +13,7 @@ class RecoveryMissionScreen extends StatefulWidget {
 
   final RecoveryMission mission;
   final VoidCallback onBack;
-  final VoidCallback onSubmit;
+  final ValueChanged<String> onSubmit;
 
   @override
   State<RecoveryMissionScreen> createState() => _RecoveryMissionScreenState();
@@ -86,7 +86,7 @@ class _RecoveryMissionScreenState extends State<RecoveryMissionScreen> {
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: widget.onSubmit,
+            onPressed: () => widget.onSubmit(_answerController.text),
             child: const Text('미션 제출하기'),
           ),
         ],

@@ -1,7 +1,10 @@
 import '../api/api_client.dart';
 import '../auth/auth_store.dart';
 import '../data/auth_api_repository.dart';
+import '../data/diagnostic_api_repository.dart';
+import '../data/learning_api_repository.dart';
 import '../data/mock_repositories.dart';
+import '../data/recovery_api_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/diagnostic_repository.dart';
 import '../domain/repositories/learning_repository.dart';
@@ -24,9 +27,9 @@ class NarooDependencies {
         apiClient: apiClient,
         authStore: authStore,
       ),
-      learningRepository: MockLearningRepository(),
-      diagnosticRepository: MockDiagnosticRepository(),
-      recoveryRepository: MockRecoveryRepository(),
+      learningRepository: LearningApiRepository(apiClient: apiClient),
+      diagnosticRepository: DiagnosticApiRepository(apiClient: apiClient),
+      recoveryRepository: RecoveryApiRepository(apiClient: apiClient),
     );
   }
 

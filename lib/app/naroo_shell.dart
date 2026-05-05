@@ -75,8 +75,12 @@ class _NarooShellState extends State<NarooShell> {
           NarooStage.startingPoint => StartingPointScreen(
             selectedStartingPoint: _controller.startingPoint,
             options: _controller.startingPointOptions,
-            onBack: _controller.goHome,
-            onSubmit: _controller.startDiagnostic,
+            onBack: () {
+              _controller.goHome();
+            },
+            onSubmit: (startingPoint) {
+              _controller.startDiagnostic(startingPoint);
+            },
           ),
           NarooStage.diagnostic => DiagnosticQuestionScreen(
             key: ValueKey(_controller.currentQuestion.id),
@@ -84,29 +88,42 @@ class _NarooShellState extends State<NarooShell> {
             questionIndex: _controller.currentQuestionIndex,
             totalQuestions: _controller.diagnosticQuestions.length,
             onBack: _controller.backToStartingPoint,
-            onSubmit: _controller.submitDiagnosticAnswer,
+            onSubmit: (question, answerId) {
+              _controller.submitDiagnosticAnswer(question, answerId);
+            },
           ),
           NarooStage.result => WeakLinkResultScreen(
-            answers: _controller.diagnosticAnswers,
-            questions: _controller.diagnosticQuestions,
+            result: _controller.diagnosticResult!,
             weakLinks: _controller.weakLinks,
-            onStartRecovery: _controller.startRecoveryMission,
+            onStartRecovery: () {
+              _controller.startRecoveryMission();
+            },
             onSaveForLater: _controller.goToSavedProgress,
           ),
           NarooStage.recoveryMission => RecoveryMissionScreen(
             mission: _controller.recoveryMission,
             onBack: _controller.goToResult,
-            onSubmit: _controller.completeRecoveryMission,
+            onSubmit: (answerText) {
+              _controller.completeRecoveryMission(answerText);
+            },
           ),
           NarooStage.missionFeedback => MissionFeedbackScreen(
-            onHome: _controller.goHome,
+            title: _controller.recoveryFeedback?.title ?? '오늘은 여기까지만 해도 충분해요.',
+            message:
+                _controller.recoveryFeedback?.message ??
+                '미션을 완료했어요. 다음에는 저장된 위치에서 이어갈게요.',
+            onHome: () {
+              _controller.goHome();
+            },
             onSavedProgress: _controller.goToSavedProgress,
           ),
           NarooStage.savedProgress => SavedProgressScreen(
             startingPoint: _controller.startingPoint,
             missionCompleted: _controller.missionCompleted,
             nextAction: _controller.savedProgressNextAction,
-            onHome: _controller.goHome,
+            onHome: () {
+              _controller.goHome();
+            },
             onContinue: _controller.continueSavedProgress,
           ),
         };
