@@ -13,6 +13,10 @@ import 'package:naroo_flutter/data/recovery_api_repository.dart';
 import 'package:naroo_flutter/domain/diagnostic_models.dart';
 
 void main() {
+  test('uses local backend as the default API base URL', () {
+    expect(ApiClientConfig().baseUrl, 'http://localhost:8080');
+  });
+
   test('throws ApiError when wrapped response is unsuccessful', () async {
     final client = ApiClient(
       authStore: AuthStore(),

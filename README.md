@@ -14,6 +14,20 @@ Run the application:
 ./gradlew bootRun
 ```
 
+Run the Flutter web frontend against a backend:
+
+```bash
+flutter run -d web-server --web-port 3000 \
+  --dart-define=NAROO_API_BASE_URL=http://localhost:8080
+```
+
+Build the Flutter web frontend for a deployed backend:
+
+```bash
+flutter build web \
+  --dart-define=NAROO_API_BASE_URL=https://your-backend.example.com
+```
+
 Default local services:
 
 - MySQL: `localhost:3306`, database `naroo`, user `naroo`, password `naroo`
