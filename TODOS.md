@@ -63,3 +63,33 @@ Cons: Adds one more project document that must stay updated if the brand directi
 Context: /plan-design-review approved Pretendard or SUIT, warm neutral palette, 8px spacing, 44px touch targets, app UI over marketing hero, and quiet mission story tone.
 
 Depends on / blocked by: None.
+
+## Run full API QA with backend services online
+
+Status: Deferred by /qa on 2026-05-05.
+
+Severity: Medium.
+
+Category: Environment/API.
+
+What: Re-run the login, signup, diagnostic, and recovery mission browser flow with the Spring backend, MySQL, and Redis running.
+
+Why: The Flutter web app now renders, but browser QA could only verify graceful failure when `http://localhost:8080` was offline. The real API flow still needs end-to-end validation with a test account.
+
+Repro from QA: Serve `build/web`, open login, enter a test login ID and password, then submit while no backend is running. The UI shows `기록을 불러오지 못했어요. 다시 시도해 주세요` and the console records `ERR_CONNECTION_REFUSED`.
+
+Depends on / blocked by: Backend server, MySQL, Redis, and an email verification token path for local QA.
+
+## Audit Flutter web accessibility semantics
+
+Status: Deferred by /qa on 2026-05-05.
+
+Severity: Medium.
+
+Category: Accessibility.
+
+What: Verify and improve the Flutter web accessibility tree for entry, auth, diagnostic, and mission screens.
+
+Why: Visual browser QA passed after web support was added, but browser snapshots reported no useful accessible elements from the Flutter canvas. Screen-reader confidence needs a dedicated pass.
+
+Depends on / blocked by: Accessibility QA target and decision on Flutter web semantics strategy.
