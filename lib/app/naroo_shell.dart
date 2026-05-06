@@ -69,7 +69,9 @@ class _NarooShellState extends State<NarooShell> {
             missionCompleted: _controller.missionCompleted,
             onVerifyEmail: _controller.goToEmailVerification,
             onStartDiagnostic: _controller.goToStartingPoint,
-            onResumeResult: _controller.goToResult,
+            onResumeResult: () {
+              _controller.startRecoveryMission();
+            },
             onSavedProgress: _controller.goToSavedProgress,
           ),
           NarooStage.startingPoint => StartingPointScreen(
