@@ -1,4 +1,4 @@
-package com.example.naroo_flutter
+package com.naroo.app
 
 import io.flutter.embedding.android.FlutterActivity
 

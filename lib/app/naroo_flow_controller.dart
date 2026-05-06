@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../api/api_types.dart';
 import '../domain/diagnostic_models.dart';
 import '../domain/learning_models.dart';
 import '../domain/repositories/auth_repository.dart';
@@ -279,8 +280,8 @@ class NarooFlowController extends ChangeNotifier {
 
     try {
       await action();
-    } catch (_) {
-      authErrorMessage = '기록을 불러오지 못했어요. 다시 시도해 주세요';
+    } catch (error) {
+      authErrorMessage = _authFailureMessage(error);
     } finally {
       isAuthBusy = false;
       notifyListeners();
@@ -294,8 +295,8 @@ class NarooFlowController extends ChangeNotifier {
 
     try {
       await action();
-    } catch (_) {
-      flowErrorMessage = '다음 기록을 불러오지 못했어요. 다시 시도해 주세요';
+    } catch (error) {
+      flowErrorMessage = _flowFailureMessage(error);
     } finally {
       isFlowBusy = false;
       notifyListeners();
@@ -327,5 +328,49 @@ class NarooFlowController extends ChangeNotifier {
 
     missionCompleted = home.todayMission?.status == 'COMPLETED';
     stage = NarooStage.home;
+  }
+
+  String _authFailureMessage(Object error) {
+    if (error is ApiError) {
+      return switch (error.errorCode) {
+        'AUTH_INVALID_CREDENTIALS' => '아이디나 비밀번호가 맞지 않아요.',
+        'AUTH_ACCESS_TOKEN_MISSING' ||
+        'GLOBAL_UNAUTHORIZED' => '로그인이 만료됐어요. 다시 로그인해 주세요.',
+        'GLOBAL_VALIDATION_ERROR' => '입력한 정보를 다시 확인해 주세요.',
+        _ => '기록을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+      };
+    }
+
+    if (_looksLikeNetworkError(error)) {
+      return '서버에 연결하지 못했어요. 네트워크와 API 주소를 확인해 주세요.';
+    }
+
+    return '기록을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.';
+  }
+
+  String _flowFailureMessage(Object error) {
+    if (error is ApiError) {
+      return switch (error.errorCode) {
+        'GLOBAL_UNAUTHORIZED' ||
+        'AUTH_ACCESS_TOKEN_MISSING' => '로그인이 만료됐어요. 다시 로그인해 주세요.',
+        'GLOBAL_VALIDATION_ERROR' => '보낸 기록을 확인하지 못했어요. 다시 시도해 주세요.',
+        _ => '다음 기록을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+      };
+    }
+
+    if (_looksLikeNetworkError(error)) {
+      return '서버에 연결하지 못했어요. 네트워크와 API 주소를 확인해 주세요.';
+    }
+
+    return '다음 기록을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.';
+  }
+
+  bool _looksLikeNetworkError(Object error) {
+    final message = error.toString();
+    return message.contains('ClientException') ||
+        message.contains('XMLHttpRequest error') ||
+        message.contains('SocketException') ||
+        message.contains('Failed host lookup') ||
+        message.contains('Connection refused');
   }
 }

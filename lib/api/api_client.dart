@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../auth/auth_store.dart';
+import '../config/naroo_environment.dart';
 import 'api_types.dart';
 
 class ApiClientConfig {
@@ -10,7 +11,7 @@ class ApiClientConfig {
 
   static const defaultBaseUrl = String.fromEnvironment(
     'NAROO_API_BASE_URL',
-    defaultValue: 'http://localhost:8080',
+    defaultValue: NarooEnvironment.apiBaseUrl,
   );
 
   final String baseUrl;

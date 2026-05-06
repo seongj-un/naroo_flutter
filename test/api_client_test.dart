@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:naroo_flutter/api/api_client.dart';
+import 'package:naroo_flutter/api/api_cookie_client.dart';
 import 'package:naroo_flutter/api/api_types.dart';
 import 'package:naroo_flutter/auth/auth_store.dart';
+import 'package:naroo_flutter/config/naroo_environment.dart';
 import 'package:naroo_flutter/data/auth_api_repository.dart';
 import 'package:naroo_flutter/data/diagnostic_api_repository.dart';
 import 'package:naroo_flutter/data/learning_api_repository.dart';
@@ -15,6 +17,13 @@ import 'package:naroo_flutter/domain/diagnostic_models.dart';
 void main() {
   test('uses local backend as the default API base URL', () {
     expect(ApiClientConfig().baseUrl, 'http://localhost:8080');
+  });
+
+  test('rejects insecure API base URL for release builds', () {
+    expect(
+      NarooEnvironment.validateApiBaseUrl(isReleaseMode: true),
+      contains('HTTPS API'),
+    );
   });
 
   test('throws ApiError when wrapped response is unsuccessful', () async {
@@ -122,6 +131,32 @@ void main() {
     expect(authStore.accessToken, 'fresh-token');
     expect(seenAuthHeaders, ['Bearer expired-token', 'Bearer fresh-token']);
   });
+
+  test(
+    'native cookie client reuses refresh cookie from set-cookie header',
+    () async {
+      final seenCookies = <String?>[];
+      final client = CookieBackedClient(
+        MockClient((request) async {
+          seenCookies.add(request.headers['Cookie']);
+          return _jsonResponse(
+            '{"success":true,"data":{}}',
+            headers: request.url.path == '/login'
+                ? {
+                    'set-cookie':
+                        'refresh_token=refresh-token; Path=/; HttpOnly',
+                  }
+                : null,
+          );
+        }),
+      );
+
+      await client.get(Uri.parse('https://api.naroo.app/login'));
+      await client.post(Uri.parse('https://api.naroo.app/api/auth/reissue'));
+
+      expect(seenCookies, [isNull, 'refresh_token=refresh-token']);
+    },
+  );
 
   test('learning repository decodes learning home', () async {
     final repository = LearningApiRepository(
@@ -315,11 +350,15 @@ void main() {
   });
 }
 
-http.Response _jsonResponse(String body, {int status = 200}) {
+http.Response _jsonResponse(
+  String body, {
+  int status = 200,
+  Map<String, String>? headers,
+}) {
   return http.Response.bytes(
     utf8.encode(body),
     status,
-    headers: {'Content-Type': 'application/json; charset=utf-8'},
+    headers: {'Content-Type': 'application/json; charset=utf-8', ...?headers},
   );
 }
 

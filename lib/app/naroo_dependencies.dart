@@ -1,4 +1,5 @@
 import '../api/api_client.dart';
+import '../api/api_http_client.dart';
 import '../auth/auth_store.dart';
 import '../data/auth_api_repository.dart';
 import '../data/diagnostic_api_repository.dart';
@@ -20,7 +21,10 @@ class NarooDependencies {
 
   factory NarooDependencies.real() {
     final authStore = AuthStore();
-    final apiClient = ApiClient(authStore: authStore);
+    final apiClient = ApiClient(
+      authStore: authStore,
+      httpClient: createApiHttpClient(),
+    );
 
     return NarooDependencies(
       authRepository: AuthApiRepository(

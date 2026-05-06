@@ -1,7 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'config/naroo_environment.dart';
 import 'naroo_app.dart';
 
 void main() {
-  runApp(NarooApp());
+  final startupError = NarooEnvironment.validateApiBaseUrl(
+    isReleaseMode: kReleaseMode,
+  );
+  runApp(NarooApp(startupError: startupError));
 }

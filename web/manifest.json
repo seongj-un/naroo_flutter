@@ -1,11 +1,11 @@
 {
-    "name": "naroo_flutter",
-    "short_name": "naroo_flutter",
+    "name": "Naroo",
+    "short_name": "Naroo",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F8F6F1",
+    "theme_color": "#2F7D68",
+    "description": "수학을 다시 시작할 위치를 찾고 짧은 복구 미션으로 이어가는 학습 앱",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

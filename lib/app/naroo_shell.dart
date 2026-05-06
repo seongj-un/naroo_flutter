@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../ui/common/naroo_widgets.dart';
 import '../ui/screens/auth_screens.dart';
 import '../ui/screens/learning_screens.dart';
 import 'naroo_dependencies.dart';
@@ -130,9 +131,17 @@ class _NarooShellState extends State<NarooShell> {
           ),
         };
 
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
-          child: child,
+        return Stack(
+          children: [
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: child,
+            ),
+            FlowStatusOverlay(
+              isLoading: _controller.isFlowBusy,
+              errorMessage: _controller.flowErrorMessage,
+            ),
+          ],
         );
       },
     );

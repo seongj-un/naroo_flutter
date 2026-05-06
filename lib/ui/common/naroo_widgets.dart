@@ -220,6 +220,64 @@ class ProgressLine extends StatelessWidget {
   }
 }
 
+class FlowStatusOverlay extends StatelessWidget {
+  const FlowStatusOverlay({
+    super.key,
+    required this.isLoading,
+    required this.errorMessage,
+  });
+
+  final bool isLoading;
+  final String? errorMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final error = errorMessage;
+
+    return IgnorePointer(
+      ignoring: error == null,
+      child: Stack(
+        children: [
+          if (isLoading)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: LinearProgressIndicator(minHeight: 3),
+            ),
+          if (error != null)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: Material(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      child: Text(
+                        error,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class StatPill extends StatelessWidget {
   const StatPill({super.key, required this.label, required this.value});
 
