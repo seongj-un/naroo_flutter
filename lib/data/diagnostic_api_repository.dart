@@ -1,5 +1,4 @@
 import '../api/api_client.dart';
-import '../api/api_types.dart';
 import '../domain/diagnostic_models.dart';
 import '../domain/learning_models.dart';
 import '../domain/repositories/diagnostic_repository.dart';
@@ -20,10 +19,14 @@ class DiagnosticApiRepository implements DiagnosticRepository {
   ];
 
   @override
-  Future<void> selectStartingPoint(String startingPoint) {
+  Future<void> selectStartingPoint(MathAreaOption mathArea) {
     return apiClient.post(
       '/api/diagnostics/starting-point',
-      body: _startingPointRequest(startingPoint),
+      body: {
+        'selectionType': 'WEAK_AREA',
+        'mathArea': mathArea.code,
+        'note': mathArea.name,
+      },
       decode: (_) {},
     );
   }
@@ -109,35 +112,6 @@ class DiagnosticApiRepository implements DiagnosticRepository {
       '/api/diagnostics/$diagnosticSessionId/result',
       decode: diagnosticResultFromData,
     );
-  }
-
-  JsonMap _startingPointRequest(String startingPoint) {
-    final mathArea = _mathAreaCodeFromStartingPoint(startingPoint);
-    return {
-      'selectionType': mathArea == null ? 'STUDY_INTEREST' : 'WEAK_AREA',
-      // ignore: use_null_aware_elements
-      if (mathArea case final mathArea?) 'mathArea': mathArea,
-      'note': startingPoint,
-    };
-  }
-
-  String? _mathAreaCodeFromStartingPoint(String startingPoint) {
-    if (startingPoint.contains('식')) {
-      return 'EQUATION';
-    }
-    if (startingPoint.contains('함수') || startingPoint.contains('그래프')) {
-      return 'FUNCTION';
-    }
-    if (startingPoint.contains('도형')) {
-      return 'GEOMETRY';
-    }
-    if (startingPoint.contains('확률') || startingPoint.contains('통계')) {
-      return 'PROBABILITY_AND_STATISTICS';
-    }
-    if (startingPoint.contains('수열')) {
-      return 'SEQUENCE';
-    }
-    return null;
   }
 
   String _mathAreaLabel(String mathArea) {

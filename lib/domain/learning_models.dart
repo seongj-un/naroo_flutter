@@ -10,6 +10,22 @@ class AuthProfile {
   final bool emailVerified;
 }
 
+class MathAreaOption {
+  const MathAreaOption({
+    required this.code,
+    required this.name,
+    required this.description,
+    required this.recommendedFor,
+    required this.displayOrder,
+  });
+
+  final String code;
+  final String name;
+  final String description;
+  final String recommendedFor;
+  final int displayOrder;
+}
+
 class WeakLink {
   const WeakLink({required this.title, required this.body});
 

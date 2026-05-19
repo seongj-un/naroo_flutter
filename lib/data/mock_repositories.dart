@@ -57,7 +57,31 @@ class MockLearningRepository implements LearningRepository {
   List<String> get mathStatusOptions => mockMathStatusOptions;
 
   @override
-  List<String> get startingPointOptions => mockStartingPointOptions;
+  Future<List<MathAreaOption>> getMathAreas() async {
+    return const [
+      MathAreaOption(
+        code: 'EQUATION',
+        name: '방정식',
+        description: '식 정리와 등식 변형이 헷갈리는 경우',
+        recommendedFor: '식을 세우거나 정리할 때 자주 막히는 학생',
+        displayOrder: 1,
+      ),
+      MathAreaOption(
+        code: 'FUNCTION',
+        name: '함수',
+        description: '함수와 그래프 연결이 자주 끊기는 경우',
+        recommendedFor: '그래프를 읽거나 식과 연결할 때 막히는 학생',
+        displayOrder: 2,
+      ),
+      MathAreaOption(
+        code: 'GEOMETRY',
+        name: '도형',
+        description: '조건을 어디에 써야 할지 막막한 경우',
+        recommendedFor: '도형 조건과 성질 연결이 약한 학생',
+        displayOrder: 3,
+      ),
+    ];
+  }
 
   @override
   Future<LearningHome> getLearningHome() async {
@@ -81,7 +105,7 @@ class MockDiagnosticRepository implements DiagnosticRepository {
   ];
 
   @override
-  Future<void> selectStartingPoint(String startingPoint) async {}
+  Future<void> selectStartingPoint(MathAreaOption mathArea) async {}
 
   @override
   Future<DiagnosticSession> createSession() async {

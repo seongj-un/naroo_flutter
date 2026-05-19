@@ -13,6 +13,7 @@ import 'package:naroo_flutter/data/diagnostic_api_repository.dart';
 import 'package:naroo_flutter/data/learning_api_repository.dart';
 import 'package:naroo_flutter/data/recovery_api_repository.dart';
 import 'package:naroo_flutter/domain/diagnostic_models.dart';
+import 'package:naroo_flutter/domain/learning_models.dart';
 
 void main() {
   test('uses local backend as the default API base URL', () {
@@ -205,6 +206,44 @@ void main() {
     expect(home.latestDiagnostic?.weakLinks, ['linear-function']);
   });
 
+  test('learning repository decodes math areas', () async {
+    final repository = LearningApiRepository(
+      apiClient: ApiClient(
+        authStore: AuthStore(),
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/api/math-areas');
+          expect(request.headers['Authorization'], isNull);
+          return _jsonResponse('''
+          {
+            "success": true,
+            "data": [
+              {
+                "code": "FUNCTION",
+                "name": "함수",
+                "description": "함수와 그래프 연결이 자주 끊기는 경우",
+                "recommendedFor": "그래프를 읽거나 식과 연결할 때 막히는 학생",
+                "displayOrder": 2
+              },
+              {
+                "code": "EQUATION",
+                "name": "방정식",
+                "description": "식 정리와 등식 변형이 헷갈리는 경우",
+                "recommendedFor": "식을 세우거나 정리할 때 자주 막히는 학생",
+                "displayOrder": 1
+              }
+            ]
+          }
+          ''');
+        }),
+      ),
+    );
+
+    final mathAreas = await repository.getMathAreas();
+
+    expect(mathAreas.map((area) => area.code), ['EQUATION', 'FUNCTION']);
+    expect(mathAreas.first.name, '방정식');
+  });
+
   test('diagnostic repository submits starting point and answers', () async {
     final requests = <http.BaseRequest>[];
     final repository = DiagnosticApiRepository(
@@ -217,7 +256,7 @@ void main() {
             expect(jsonDecode(request.body), {
               'selectionType': 'WEAK_AREA',
               'mathArea': 'FUNCTION',
-              'note': '함수 그래프가 나오면 막혀요',
+              'note': '함수',
             });
             return _jsonResponse('{"success":true,"data":{}}');
           }
@@ -271,7 +310,15 @@ void main() {
       ),
     );
 
-    await repository.selectStartingPoint('함수 그래프가 나오면 막혀요');
+    await repository.selectStartingPoint(
+      const MathAreaOption(
+        code: 'FUNCTION',
+        name: '함수',
+        description: '함수와 그래프 연결이 자주 끊기는 경우',
+        recommendedFor: '그래프를 읽거나 식과 연결할 때 막히는 학생',
+        displayOrder: 2,
+      ),
+    );
     final session = await repository.createSession();
     final questions = await repository.getQuestions(session.id);
     final result = await repository.submitAnswers(
@@ -347,6 +394,23 @@ void main() {
     expect(mission.title, '일차함수 회복 미션');
     expect(feedback.title, '좋아요');
     expect(feedback.mission.status, 'COMPLETED');
+  });
+
+  test('recovery repository fetches mission by id', () async {
+    final repository = RecoveryApiRepository(
+      apiClient: ApiClient(
+        authStore: AuthStore()..updateAccessToken('jwt-token'),
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/api/recovery-missions/mission-id');
+          return _missionResponse();
+        }),
+      ),
+    );
+
+    final mission = await repository.getMission('mission-id');
+
+    expect(mission.id, 'mission-id');
+    expect(mission.status, 'IN_PROGRESS');
   });
 }
 

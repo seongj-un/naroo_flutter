@@ -67,7 +67,7 @@ void main() {
 
     expect(find.text('요즘 수학에서 어디가 제일 막히나요?'), findsOneWidget);
 
-    await tester.tap(find.text('함수 그래프가 나오면 막혀요'));
+    await tester.tap(find.text('함수'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('가볍게 확인하기'),
@@ -134,7 +134,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('마지막 위치를 저장해뒀어요.'), findsOneWidget);
-    expect(find.text('완료한 미션 1개'), findsOneWidget);
+    expect(find.text('저장된 학습 상태를 확인했어요'), findsOneWidget);
   });
 }
 

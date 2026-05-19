@@ -6,7 +6,7 @@ abstract interface class DiagnosticRepository {
 
   List<WeakLink> get weakLinks;
 
-  Future<void> selectStartingPoint(String startingPoint);
+  Future<void> selectStartingPoint(MathAreaOption mathArea);
 
   Future<DiagnosticSession> createSession();
 

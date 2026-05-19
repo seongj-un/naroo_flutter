@@ -1,27 +1,28 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/learning_models.dart';
 import '../common/naroo_widgets.dart';
 
 class StartingPointScreen extends StatefulWidget {
   const StartingPointScreen({
     super.key,
-    required this.selectedStartingPoint,
+    required this.selectedMathAreaCode,
     required this.options,
     required this.onBack,
     required this.onSubmit,
   });
 
-  final String? selectedStartingPoint;
-  final List<String> options;
+  final String? selectedMathAreaCode;
+  final List<MathAreaOption> options;
   final VoidCallback onBack;
-  final ValueChanged<String> onSubmit;
+  final ValueChanged<MathAreaOption> onSubmit;
 
   @override
   State<StartingPointScreen> createState() => _StartingPointScreenState();
 }
 
 class _StartingPointScreenState extends State<StartingPointScreen> {
-  late String? _selected = widget.selectedStartingPoint;
+  late String? _selected = widget.selectedMathAreaCode;
 
   @override
   Widget build(BuildContext context) {
@@ -40,20 +41,25 @@ class _StartingPointScreenState extends State<StartingPointScreen> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
-          for (final startingPoint in widget.options)
+          for (final mathArea in widget.options)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: ChoiceRow(
-                label: startingPoint,
-                selected: _selected == startingPoint,
-                onTap: () => setState(() => _selected = startingPoint),
+                label: mathArea.name,
+                description: mathArea.description,
+                selected: _selected == mathArea.code,
+                onTap: () => setState(() => _selected = mathArea.code),
               ),
             ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _selected == null
                 ? null
-                : () => widget.onSubmit(_selected!),
+                : () => widget.onSubmit(
+                    widget.options.firstWhere(
+                      (mathArea) => mathArea.code == _selected,
+                    ),
+                  ),
             child: const Text('가볍게 확인하기'),
           ),
         ],

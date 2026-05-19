@@ -65,24 +65,22 @@ class _NarooShellState extends State<NarooShell> {
           NarooStage.home => LearningHomeScreen(
             nickname: _controller.nickname,
             emailVerified: _controller.emailVerified,
-            startingPoint: _controller.startingPoint,
-            hasDiagnosticResult: _controller.hasDiagnosticResult,
-            missionCompleted: _controller.missionCompleted,
-            onVerifyEmail: _controller.goToEmailVerification,
-            onStartDiagnostic: _controller.goToStartingPoint,
-            onResumeResult: () {
-              _controller.startRecoveryMission();
+            title: _controller.homeActionTitle,
+            body: _controller.homeActionBody,
+            buttonLabel: _controller.homeActionButtonLabel,
+            onPrimaryAction: () {
+              _controller.openHomePrimaryAction();
             },
             onSavedProgress: _controller.goToSavedProgress,
           ),
           NarooStage.startingPoint => StartingPointScreen(
-            selectedStartingPoint: _controller.startingPoint,
-            options: _controller.startingPointOptions,
+            selectedMathAreaCode: null,
+            options: _controller.mathAreas,
             onBack: () {
               _controller.goHome();
             },
-            onSubmit: (startingPoint) {
-              _controller.startDiagnostic(startingPoint);
+            onSubmit: (mathArea) {
+              _controller.startDiagnostic(mathArea);
             },
           ),
           NarooStage.diagnostic => DiagnosticQuestionScreen(
@@ -122,12 +120,14 @@ class _NarooShellState extends State<NarooShell> {
           ),
           NarooStage.savedProgress => SavedProgressScreen(
             startingPoint: _controller.startingPoint,
-            missionCompleted: _controller.missionCompleted,
             nextAction: _controller.savedProgressNextAction,
+            buttonLabel: _controller.savedProgressButtonLabel,
             onHome: () {
               _controller.goHome();
             },
-            onContinue: _controller.continueSavedProgress,
+            onContinue: () {
+              _controller.continueSavedProgress();
+            },
           ),
         };
 

@@ -40,9 +40,11 @@ class NarooFlowController extends ChangeNotifier {
   String nickname = '나루';
   String email = '';
   String? startingPoint;
+  LearningNextAction learningNextAction = LearningNextAction.startDiagnostic;
   String? diagnosticSessionId;
   int currentQuestionIndex = 0;
   final Map<String, DiagnosticAnswer> diagnosticAnswers = {};
+  List<MathAreaOption> _mathAreas = const [];
   List<DiagnosticQuestion> _diagnosticQuestions = [];
   DiagnosticResult? diagnosticResult;
   RecoveryMission? activeRecoveryMission;
@@ -56,8 +58,7 @@ class NarooFlowController extends ChangeNotifier {
 
   List<String> get mathStatusOptions => learningRepository.mathStatusOptions;
 
-  List<String> get startingPointOptions =>
-      learningRepository.startingPointOptions;
+  List<MathAreaOption> get mathAreas => _mathAreas;
 
   List<DiagnosticQuestion> get diagnosticQuestions =>
       _diagnosticQuestions.isEmpty
@@ -79,8 +80,70 @@ class NarooFlowController extends ChangeNotifier {
   RecoveryMission get recoveryMission =>
       activeRecoveryMission ?? recoveryRepository.firstMission;
 
-  String get savedProgressNextAction =>
-      recoveryRepository.nextAction(missionCompleted: missionCompleted);
+  String get homeActionTitle {
+    if (!emailVerified ||
+        learningNextAction == LearningNextAction.emailVerificationRequired) {
+      return '이메일 확인이 필요해요';
+    }
+
+    return switch (learningNextAction) {
+      LearningNextAction.emailVerificationRequired => '이메일 확인이 필요해요',
+      LearningNextAction.startDiagnostic => '첫 진단을 시작할 수 있어요',
+      LearningNextAction.createRecoveryMission => '약한 연결부터 다시 시작할 수 있어요',
+      LearningNextAction.continueRecoveryMission => '진행 중인 복습을 이어갈 수 있어요',
+    };
+  }
+
+  String get homeActionBody {
+    if (!emailVerified ||
+        learningNextAction == LearningNextAction.emailVerificationRequired) {
+      return '기록을 안전하게 저장한 뒤 시작 위치를 이어갈 수 있어요.';
+    }
+
+    return switch (learningNextAction) {
+      LearningNextAction.emailVerificationRequired =>
+        '기록을 안전하게 저장한 뒤 시작 위치를 이어갈 수 있어요.',
+      LearningNextAction.startDiagnostic =>
+        '아직 첫 기록이 없어요. 지금 가장 막히는 영역부터 가볍게 확인해 볼게요.',
+      LearningNextAction.createRecoveryMission =>
+        '진단 결과를 저장해뒀어요. 가장 먼저 다시 연결할 개념부터 10분 미션으로 이어갈 수 있어요.',
+      LearningNextAction.continueRecoveryMission =>
+        '오늘 미션이 이미 준비돼 있어요. 끊긴 자리부터 바로 이어가면 돼요.',
+    };
+  }
+
+  String get homeActionButtonLabel {
+    if (!emailVerified ||
+        learningNextAction == LearningNextAction.emailVerificationRequired) {
+      return '이메일 인증하기';
+    }
+
+    return switch (learningNextAction) {
+      LearningNextAction.emailVerificationRequired => '이메일 인증하기',
+      LearningNextAction.startDiagnostic => '시작 위치 고르기',
+      LearningNextAction.createRecoveryMission => '진단 결과 보기',
+      LearningNextAction.continueRecoveryMission => '진행 중인 미션 이어가기',
+    };
+  }
+
+  String get savedProgressNextAction {
+    return switch (learningNextAction) {
+      LearningNextAction.emailVerificationRequired => '이메일 인증 후 이어서 진행해 주세요.',
+      LearningNextAction.startDiagnostic => '시작 위치를 고르고 첫 진단을 시작해 주세요.',
+      LearningNextAction.createRecoveryMission =>
+        '진단 결과를 확인하고 첫 회복 미션을 시작해 주세요.',
+      LearningNextAction.continueRecoveryMission => '진행 중인 회복 미션을 이어가 주세요.',
+    };
+  }
+
+  String get savedProgressButtonLabel {
+    return switch (learningNextAction) {
+      LearningNextAction.emailVerificationRequired => '이메일 인증하기',
+      LearningNextAction.startDiagnostic => '시작 위치 고르기',
+      LearningNextAction.createRecoveryMission => '진단 결과 보기',
+      LearningNextAction.continueRecoveryMission => '미션 이어가기',
+    };
+  }
 
   DiagnosticQuestion get currentQuestion =>
       diagnosticQuestions[currentQuestionIndex];
@@ -167,9 +230,11 @@ class NarooFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void goToStartingPoint() {
-    stage = NarooStage.startingPoint;
-    notifyListeners();
+  Future<void> goToStartingPoint() {
+    return _runFlowAction(() async {
+      await _loadMathAreas();
+      stage = NarooStage.startingPoint;
+    });
   }
 
   Future<void> goHome() {
@@ -178,9 +243,9 @@ class NarooFlowController extends ChangeNotifier {
     });
   }
 
-  Future<void> startDiagnostic(String startingPoint) {
+  Future<void> startDiagnostic(MathAreaOption mathArea) {
     return _runFlowAction(() async {
-      this.startingPoint = startingPoint;
+      startingPoint = mathArea.name;
       currentQuestionIndex = 0;
       diagnosticAnswers.clear();
       diagnosticResult = null;
@@ -188,7 +253,7 @@ class NarooFlowController extends ChangeNotifier {
       recoveryFeedback = null;
       missionCompleted = false;
 
-      await diagnosticRepository.selectStartingPoint(startingPoint);
+      await diagnosticRepository.selectStartingPoint(mathArea);
       final session = await diagnosticRepository.createSession();
       diagnosticSessionId = session.id;
       _diagnosticQuestions = await diagnosticRepository.getQuestions(
@@ -237,17 +302,35 @@ class NarooFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> startRecoveryMission() {
+  Future<void> openHomePrimaryAction() {
+    if (!emailVerified ||
+        learningNextAction == LearningNextAction.emailVerificationRequired) {
+      goToEmailVerification();
+      return Future.value();
+    }
+
     return _runFlowAction(() async {
-      final sessionId = diagnosticResult?.diagnosticSessionId;
-      if (sessionId == null || sessionId.isEmpty) {
-        throw StateError('Diagnostic result is missing.');
+      switch (learningNextAction) {
+        case LearningNextAction.emailVerificationRequired:
+          stage = NarooStage.emailVerification;
+          break;
+        case LearningNextAction.startDiagnostic:
+          await _loadMathAreas();
+          stage = NarooStage.startingPoint;
+          break;
+        case LearningNextAction.createRecoveryMission:
+          await _loadDiagnosticResult();
+          stage = NarooStage.result;
+          break;
+        case LearningNextAction.continueRecoveryMission:
+          await _resumeRecoveryMission();
+          break;
       }
-      activeRecoveryMission = await recoveryRepository.createMission(
-        diagnosticSessionId: sessionId,
-      );
-      stage = NarooStage.recoveryMission;
     });
+  }
+
+  Future<void> startRecoveryMission() {
+    return _runFlowAction(_createRecoveryMission);
   }
 
   Future<void> completeRecoveryMission(String answerText) {
@@ -268,9 +351,8 @@ class NarooFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void continueSavedProgress() {
-    stage = missionCompleted ? NarooStage.home : NarooStage.recoveryMission;
-    notifyListeners();
+  Future<void> continueSavedProgress() {
+    return openHomePrimaryAction();
   }
 
   Future<void> _runAuthAction(Future<void> Function() action) async {
@@ -307,10 +389,12 @@ class NarooFlowController extends ChangeNotifier {
     final home = await learningRepository.getLearningHome();
     nickname = home.nickname;
     emailVerified = home.emailVerified;
+    learningNextAction = home.nextAction;
     activeRecoveryMission = home.todayMission;
 
     final latestDiagnostic = home.latestDiagnostic;
     if (latestDiagnostic != null) {
+      startingPoint = _mathAreaLabel(latestDiagnostic.mathArea);
       diagnosticSessionId = latestDiagnostic.diagnosticSessionId;
       diagnosticResult = DiagnosticResult(
         diagnosticSessionId: latestDiagnostic.diagnosticSessionId,
@@ -324,10 +408,53 @@ class NarooFlowController extends ChangeNotifier {
         primaryRecoveryConcept: latestDiagnostic.primaryRecoveryConcept,
         summary: latestDiagnostic.summary,
       );
+    } else {
+      diagnosticSessionId = null;
+      diagnosticResult = null;
     }
 
     missionCompleted = home.todayMission?.status == 'COMPLETED';
     stage = NarooStage.home;
+  }
+
+  Future<void> _loadMathAreas() async {
+    _mathAreas = await learningRepository.getMathAreas();
+    if (_mathAreas.isEmpty) {
+      throw StateError('Math areas are empty.');
+    }
+  }
+
+  Future<void> _loadDiagnosticResult() async {
+    final sessionId =
+        diagnosticSessionId ?? diagnosticResult?.diagnosticSessionId;
+    if (sessionId == null || sessionId.isEmpty) {
+      throw StateError('Diagnostic result is missing.');
+    }
+    diagnosticResult = await diagnosticRepository.getResult(sessionId);
+    startingPoint = _mathAreaLabel(diagnosticResult!.mathArea);
+  }
+
+  Future<void> _createRecoveryMission() async {
+    final sessionId =
+        diagnosticResult?.diagnosticSessionId ?? diagnosticSessionId;
+    if (sessionId == null || sessionId.isEmpty) {
+      throw StateError('Diagnostic result is missing.');
+    }
+    activeRecoveryMission = await recoveryRepository.createMission(
+      diagnosticSessionId: sessionId,
+    );
+    stage = NarooStage.recoveryMission;
+  }
+
+  Future<void> _resumeRecoveryMission() async {
+    final missionId = activeRecoveryMission?.id;
+    if (missionId == null || missionId.isEmpty) {
+      await _createRecoveryMission();
+      return;
+    }
+
+    activeRecoveryMission = await recoveryRepository.getMission(missionId);
+    stage = NarooStage.recoveryMission;
   }
 
   String _authFailureMessage(Object error) {
@@ -353,6 +480,11 @@ class NarooFlowController extends ChangeNotifier {
       return switch (error.errorCode) {
         'GLOBAL_UNAUTHORIZED' ||
         'AUTH_ACCESS_TOKEN_MISSING' => '로그인이 만료됐어요. 다시 로그인해 주세요.',
+        'DIAGNOSTIC_EMAIL_VERIFICATION_REQUIRED' => '이메일 인증을 먼저 완료해 주세요.',
+        'DIAGNOSTIC_RESULT_NOT_READY' => '진단 결과를 아직 만들지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+        'DIAGNOSTIC_ALREADY_COMPLETED' => '진단은 이미 완료됐어요. 저장된 결과를 다시 불러올게요.',
+        'RECOVERY_MISSION_ALREADY_COMPLETED' =>
+          '이 미션은 이미 끝났어요. 학습 홈 상태를 다시 불러와 주세요.',
         'GLOBAL_VALIDATION_ERROR' => '보낸 기록을 확인하지 못했어요. 다시 시도해 주세요.',
         _ => '다음 기록을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
       };
@@ -372,5 +504,16 @@ class NarooFlowController extends ChangeNotifier {
         message.contains('SocketException') ||
         message.contains('Failed host lookup') ||
         message.contains('Connection refused');
+  }
+
+  String _mathAreaLabel(String mathArea) {
+    return switch (mathArea) {
+      'EQUATION' => '방정식',
+      'FUNCTION' => '함수',
+      'GEOMETRY' => '도형',
+      'PROBABILITY_AND_STATISTICS' => '확률과 통계',
+      'SEQUENCE' => '수열',
+      _ => '진단 결과',
+    };
   }
 }

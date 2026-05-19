@@ -18,18 +18,44 @@ class LearningApiRepository implements LearningRepository {
   ];
 
   @override
-  List<String> get startingPointOptions => const [
-    '식을 어떻게 바꿀지 모르겠어요',
-    '함수 그래프가 나오면 막혀요',
-    '도형 조건을 어디에 써야 할지 모르겠어요',
-    '확률과 통계에서 기준을 못 잡겠어요',
-    '수열 규칙을 식으로 못 바꾸겠어요',
-    '어디서부터 다시 해야 할지 모르겠어요',
-  ];
-
-  @override
   Future<LearningHome> getLearningHome() {
     return apiClient.get('/api/me/learning-home', decode: _homeFromData);
+  }
+
+  @override
+  Future<List<MathAreaOption>> getMathAreas() {
+    return apiClient.get(
+      '/api/math-areas',
+      auth: false,
+      decode: (data) {
+        if (data is! List) {
+          return const <MathAreaOption>[];
+        }
+
+        final areas = data
+            .map((areaData) {
+              final area = requireObject(areaData);
+              return MathAreaOption(
+                code: stringFromData(area['code']),
+                name: stringFromData(area['name']),
+                description: stringFromData(area['description']),
+                recommendedFor: stringFromData(area['recommendedFor']),
+                displayOrder: intFromData(area['displayOrder']),
+              );
+            })
+            .where((area) => area.code.isNotEmpty && area.name.isNotEmpty)
+            .toList(growable: false);
+
+        areas.sort((left, right) {
+          final order = left.displayOrder.compareTo(right.displayOrder);
+          if (order != 0) {
+            return order;
+          }
+          return left.name.compareTo(right.name);
+        });
+        return areas;
+      },
+    );
   }
 
   LearningHome _homeFromData(Object? data) {

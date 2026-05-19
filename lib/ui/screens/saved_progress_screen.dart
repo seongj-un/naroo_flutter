@@ -6,15 +6,15 @@ class SavedProgressScreen extends StatelessWidget {
   const SavedProgressScreen({
     super.key,
     required this.startingPoint,
-    required this.missionCompleted,
     required this.nextAction,
+    required this.buttonLabel,
     required this.onHome,
     required this.onContinue,
   });
 
   final String? startingPoint;
-  final bool missionCompleted;
   final String nextAction;
+  final String buttonLabel;
   final VoidCallback onHome;
   final VoidCallback onContinue;
 
@@ -63,12 +63,9 @@ class SavedProgressScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          ProgressLine(label: missionCompleted ? '완료한 미션 1개' : '진행 중인 미션 1개'),
+          const ProgressLine(label: '저장된 학습 상태를 확인했어요'),
           const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: onContinue,
-            child: Text(missionCompleted ? '학습 홈으로 가기' : '미션 이어가기'),
-          ),
+          ElevatedButton(onPressed: onContinue, child: Text(buttonLabel)),
           const SizedBox(height: 8),
           TextButton(onPressed: onHome, child: const Text('학습 홈')),
         ],

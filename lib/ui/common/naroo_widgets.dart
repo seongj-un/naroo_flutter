@@ -90,11 +90,13 @@ class ChoiceRow extends StatelessWidget {
   const ChoiceRow({
     super.key,
     required this.label,
+    this.description,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
+  final String? description;
   final bool selected;
   final VoidCallback onTap;
 
@@ -124,9 +126,18 @@ class ChoiceRow extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: Theme.of(context).textTheme.bodyLarge),
+                    if (description case final description?) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
