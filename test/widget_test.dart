@@ -196,18 +196,18 @@ void main() {
   );
 
   testWidgets(
-    'home starts the next recovery mission directly after a completed mission exists',
+    'home opens saved progress when recovery series is completed',
     (tester) async {
       await tester.pumpWidget(_nextMissionHomeApp());
 
       await _login(tester);
 
-      expect(find.text('다음 복구 미션 시작하기'), findsOneWidget);
-      await tester.tap(find.text('다음 복구 미션 시작하기'));
+      expect(find.text('저장된 기록 보기'), findsNWidgets(2));
+      await tester.tap(find.text('저장된 기록 보기').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('다음 함수 미션'), findsOneWidget);
-      expect(find.text('미션 제출하기'), findsOneWidget);
+      expect(find.text('마지막 위치를 저장해뒀어요.'), findsOneWidget);
+      expect(find.text('최근 회복 미션을 모두 완료했어요. 저장된 기록을 확인해 주세요.'), findsOneWidget);
     },
   );
 }
@@ -233,7 +233,7 @@ Widget _nextMissionHomeApp() {
       authRepository: MockAuthRepository(),
       learningRepository: _NextMissionLearningRepository(),
       diagnosticRepository: MockDiagnosticRepository(),
-      recoveryRepository: _NextMissionRecoveryRepository(),
+      recoveryRepository: MockRecoveryRepository(),
     ),
   );
 }
@@ -324,7 +324,7 @@ class _NextMissionLearningRepository implements LearningRepository {
     return const LearningHome(
       nickname: 'student01',
       emailVerified: true,
-      nextAction: LearningNextAction.createRecoveryMission,
+      nextAction: LearningNextAction.recoverySeriesCompleted,
       latestDiagnostic: LearningDiagnosticSummary(
         diagnosticSessionId: 'diagnostic-1',
         mathArea: 'FUNCTION',
@@ -338,63 +338,18 @@ class _NextMissionLearningRepository implements LearningRepository {
         summary: '다음 미션으로 이어가면 돼요.',
       ),
       todayMission: null,
-      completedMissionCount: 1,
-      inProgressMissionCount: 0,
-    );
-  }
-}
-
-class _NextMissionRecoveryRepository implements RecoveryRepository {
-  @override
-  RecoveryMission get firstMission => const RecoveryMission(
-    id: 'next-mission',
-    diagnosticSessionId: 'diagnostic-1',
-    title: '다음 함수 미션',
-    estimatedTime: '예상 시간 10분',
-    explanation: '다음 개념을 바로 이어갑니다.',
-    challenge: '식에 값을 넣는 순서를 한 줄씩 적어보세요.',
-    hint: '대입할 값을 먼저 표시해 보세요.',
-    status: 'IN_PROGRESS',
-  );
-
-  @override
-  Future<RecoveryMission> createMission({
-    required String diagnosticSessionId,
-  }) async {
-    return firstMission;
-  }
-
-  @override
-  Future<RecoveryMission> getMission(String recoveryMissionId) async {
-    return firstMission;
-  }
-
-  @override
-  String nextAction({required bool missionCompleted}) {
-    return missionCompleted
-        ? '학습 홈에서 다음 행동을 확인해 주세요.'
-        : '진행 중인 회복 미션을 이어갈 수 있어요.';
-  }
-
-  @override
-  Future<RecoverySubmissionFeedback> submitMission({
-    required String recoveryMissionId,
-    required String answerText,
-  }) async {
-    return RecoverySubmissionFeedback(
-      title: '복구 기록 완료',
-      message: '다음 약점 개념 미션 이어가기',
-      nextAction: nextAction(missionCompleted: true),
-      mission: const RecoveryMission(
-        id: 'next-mission',
+      latestMission: RecoveryMission(
+        id: 'completed-mission',
         diagnosticSessionId: 'diagnostic-1',
-        title: '다음 함수 미션',
+        title: '함수값 대입 10분 복구 미션',
         estimatedTime: '예상 시간 10분',
-        explanation: '다음 개념을 바로 이어갑니다.',
-        challenge: '식에 값을 넣는 순서를 한 줄씩 적어보세요.',
-        hint: '대입할 값을 먼저 표시해 보세요.',
+        explanation: '최근 미션을 완료했어요.',
+        challenge: '완료한 미션입니다.',
+        hint: '저장된 기록을 확인해 보세요.',
         status: 'COMPLETED',
       ),
+      completedMissionCount: 1,
+      inProgressMissionCount: 0,
     );
   }
 }

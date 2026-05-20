@@ -62,6 +62,7 @@ class LearningHome {
     required this.nextAction,
     this.latestDiagnostic,
     this.todayMission,
+    this.latestMission,
     this.completedMissionCount = 0,
     this.inProgressMissionCount = 0,
   });
@@ -71,6 +72,7 @@ class LearningHome {
   final LearningNextAction nextAction;
   final LearningDiagnosticSummary? latestDiagnostic;
   final RecoveryMission? todayMission;
+  final RecoveryMission? latestMission;
   final int completedMissionCount;
   final int inProgressMissionCount;
 }
@@ -80,6 +82,7 @@ enum LearningNextAction {
   startDiagnostic,
   createRecoveryMission,
   continueRecoveryMission,
+  recoverySeriesCompleted,
 }
 
 class LearningDiagnosticSummary {

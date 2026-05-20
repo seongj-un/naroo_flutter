@@ -69,6 +69,7 @@ class LearningApiRepository implements LearningRepository {
       nextAction: _nextActionFromData(object['nextAction']),
       latestDiagnostic: _diagnosticSummaryFromData(object['latestDiagnostic']),
       todayMission: recoveryMissionFromDataOrNull(object['todayMission']),
+      latestMission: recoveryMissionFromDataOrNull(object['latestMission']),
       completedMissionCount: intFromData(progress['completedMissionCount']),
       inProgressMissionCount: intFromData(progress['inProgressMissionCount']),
     );
@@ -80,6 +81,8 @@ class LearningApiRepository implements LearningRepository {
         LearningNextAction.emailVerificationRequired,
       'CREATE_RECOVERY_MISSION' => LearningNextAction.createRecoveryMission,
       'CONTINUE_RECOVERY_MISSION' => LearningNextAction.continueRecoveryMission,
+      'RECOVERY_SERIES_COMPLETED' =>
+        LearningNextAction.recoverySeriesCompleted,
       _ => LearningNextAction.startDiagnostic,
     };
   }

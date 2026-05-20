@@ -48,6 +48,7 @@ class NarooFlowController extends ChangeNotifier {
   List<DiagnosticQuestion> _diagnosticQuestions = [];
   DiagnosticResult? diagnosticResult;
   RecoveryMission? activeRecoveryMission;
+  RecoveryMission? latestRecoveryMission;
   RecoverySubmissionFeedback? recoveryFeedback;
   bool missionCompleted = false;
   bool emailVerified = false;
@@ -91,10 +92,9 @@ class NarooFlowController extends ChangeNotifier {
     return switch (learningNextAction) {
       LearningNextAction.emailVerificationRequired => '이메일 확인이 필요해요',
       LearningNextAction.startDiagnostic => '첫 진단을 시작할 수 있어요',
-      LearningNextAction.createRecoveryMission => completedMissionCount > 0
-          ? '다음 복구 미션을 이어갈 수 있어요'
-          : '약한 연결부터 다시 시작할 수 있어요',
+      LearningNextAction.createRecoveryMission => '약한 연결부터 다시 시작할 수 있어요',
       LearningNextAction.continueRecoveryMission => '진행 중인 복습을 이어갈 수 있어요',
+      LearningNextAction.recoverySeriesCompleted => '이번 회복 미션을 모두 마쳤어요',
     };
   }
 
@@ -109,11 +109,14 @@ class NarooFlowController extends ChangeNotifier {
         '기록을 안전하게 저장한 뒤 시작 위치를 이어갈 수 있어요.',
       LearningNextAction.startDiagnostic =>
         '아직 첫 기록이 없어요. 지금 가장 막히는 영역부터 가볍게 확인해 볼게요.',
-      LearningNextAction.createRecoveryMission => completedMissionCount > 0
-          ? '이전 미션은 끝났어요. 같은 진단 결과에서 다음으로 다시 볼 개념을 바로 이어갈 수 있어요.'
-          : '진단 결과를 저장해뒀어요. 가장 먼저 다시 연결할 개념부터 10분 미션으로 이어갈 수 있어요.',
+      LearningNextAction.createRecoveryMission =>
+        '진단 결과를 저장해뒀어요. 가장 먼저 다시 연결할 개념부터 10분 미션으로 이어갈 수 있어요.',
       LearningNextAction.continueRecoveryMission =>
         '오늘 미션이 이미 준비돼 있어요. 끊긴 자리부터 바로 이어가면 돼요.',
+      LearningNextAction.recoverySeriesCompleted =>
+        latestRecoveryMission == null
+            ? '최근 회복 미션을 모두 마쳤어요. 저장된 기록을 보고 다음 학습 시작점을 정리할 수 있어요.'
+            : '${latestRecoveryMission!.title}까지 마쳤어요. 저장된 기록을 보고 다음 학습 시작점을 정리할 수 있어요.',
     };
   }
 
@@ -126,9 +129,9 @@ class NarooFlowController extends ChangeNotifier {
     return switch (learningNextAction) {
       LearningNextAction.emailVerificationRequired => '이메일 인증하기',
       LearningNextAction.startDiagnostic => '시작 위치 고르기',
-      LearningNextAction.createRecoveryMission =>
-        completedMissionCount > 0 ? '다음 복구 미션 시작하기' : '진단 결과 보기',
+      LearningNextAction.createRecoveryMission => '진단 결과 보기',
       LearningNextAction.continueRecoveryMission => '진행 중인 미션 이어가기',
+      LearningNextAction.recoverySeriesCompleted => '저장된 기록 보기',
     };
   }
 
@@ -136,10 +139,11 @@ class NarooFlowController extends ChangeNotifier {
     return switch (learningNextAction) {
       LearningNextAction.emailVerificationRequired => '이메일 인증 후 이어서 진행해 주세요.',
       LearningNextAction.startDiagnostic => '시작 위치를 고르고 첫 진단을 시작해 주세요.',
-      LearningNextAction.createRecoveryMission => completedMissionCount > 0
-          ? '이전 미션은 저장됐어요. 다음 회복 미션을 바로 시작해 주세요.'
-          : '진단 결과를 확인하고 첫 회복 미션을 시작해 주세요.',
+      LearningNextAction.createRecoveryMission =>
+        '진단 결과를 확인하고 첫 회복 미션을 시작해 주세요.',
       LearningNextAction.continueRecoveryMission => '진행 중인 회복 미션을 이어가 주세요.',
+      LearningNextAction.recoverySeriesCompleted =>
+        '최근 회복 미션을 모두 완료했어요. 저장된 기록을 확인해 주세요.',
     };
   }
 
@@ -147,9 +151,9 @@ class NarooFlowController extends ChangeNotifier {
     return switch (learningNextAction) {
       LearningNextAction.emailVerificationRequired => '이메일 인증하기',
       LearningNextAction.startDiagnostic => '시작 위치 고르기',
-      LearningNextAction.createRecoveryMission =>
-        completedMissionCount > 0 ? '다음 미션 시작하기' : '진단 결과 보기',
+      LearningNextAction.createRecoveryMission => '진단 결과 보기',
       LearningNextAction.continueRecoveryMission => '미션 이어가기',
+      LearningNextAction.recoverySeriesCompleted => '저장된 기록 보기',
     };
   }
 
@@ -258,6 +262,7 @@ class NarooFlowController extends ChangeNotifier {
       diagnosticAnswers.clear();
       diagnosticResult = null;
       activeRecoveryMission = null;
+      latestRecoveryMission = null;
       recoveryFeedback = null;
       missionCompleted = false;
 
@@ -327,15 +332,14 @@ class NarooFlowController extends ChangeNotifier {
           stage = NarooStage.startingPoint;
           break;
         case LearningNextAction.createRecoveryMission:
-          if (completedMissionCount > 0) {
-            await _createRecoveryMission();
-            break;
-          }
           await _loadDiagnosticResult();
           stage = NarooStage.result;
           break;
         case LearningNextAction.continueRecoveryMission:
           await _resumeRecoveryMission();
+          break;
+        case LearningNextAction.recoverySeriesCompleted:
+          stage = NarooStage.savedProgress;
           break;
       }
     });
@@ -411,6 +415,7 @@ class NarooFlowController extends ChangeNotifier {
     emailVerified = home.emailVerified;
     learningNextAction = home.nextAction;
     activeRecoveryMission = home.todayMission;
+    latestRecoveryMission = home.latestMission;
 
     final latestDiagnostic = home.latestDiagnostic;
     if (latestDiagnostic != null) {
@@ -433,7 +438,9 @@ class NarooFlowController extends ChangeNotifier {
       diagnosticResult = null;
     }
 
-    missionCompleted = home.todayMission?.status == 'COMPLETED';
+    missionCompleted =
+        home.todayMission?.status == 'COMPLETED' ||
+        home.nextAction == LearningNextAction.recoverySeriesCompleted;
     completedMissionCount = home.completedMissionCount;
     inProgressMissionCount = home.inProgressMissionCount;
     stage = NarooStage.home;
@@ -462,9 +469,17 @@ class NarooFlowController extends ChangeNotifier {
     if (sessionId == null || sessionId.isEmpty) {
       throw StateError('Diagnostic result is missing.');
     }
-    activeRecoveryMission = await recoveryRepository.createMission(
-      diagnosticSessionId: sessionId,
-    );
+    try {
+      activeRecoveryMission = await recoveryRepository.createMission(
+        diagnosticSessionId: sessionId,
+      );
+    } on ApiError catch (error) {
+      if (error.errorCode == 'RECOVERY_MISSION_SERIES_COMPLETED') {
+        await _loadLearningHome();
+        return;
+      }
+      rethrow;
+    }
     if (activeRecoveryMission?.status == 'COMPLETED') {
       _showCompletedMissionFeedback(activeRecoveryMission!);
       return;
@@ -527,6 +542,8 @@ class NarooFlowController extends ChangeNotifier {
         'DIAGNOSTIC_ALREADY_COMPLETED' => '진단은 이미 완료됐어요. 저장된 결과를 다시 불러올게요.',
         'RECOVERY_MISSION_ALREADY_COMPLETED' =>
           '이 미션은 이미 끝났어요. 학습 홈 상태를 다시 불러와 주세요.',
+        'RECOVERY_MISSION_SERIES_COMPLETED' =>
+          '이번 회복 미션은 모두 마쳤어요. 저장된 기록을 확인해 주세요.',
         'GLOBAL_VALIDATION_ERROR' => '보낸 기록을 확인하지 못했어요. 다시 시도해 주세요.',
         _ => '다음 기록을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
       };

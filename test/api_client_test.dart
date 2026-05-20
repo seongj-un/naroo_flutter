@@ -188,8 +188,18 @@ void main() {
                 "summary": "함수 개념 연결이 약해요"
               },
               "todayMission": null,
+              "latestMission": {
+                "id": "mission-id",
+                "diagnosticSessionId": "diagnostic-session-id",
+                "conceptTag": "linear-function",
+                "title": "일차함수 회복 미션",
+                "status": "COMPLETED",
+                "estimatedMinutes": 10,
+                "createdAt": "2026-04-30T00:00:00Z",
+                "completedAt": "2026-04-30T00:05:00Z"
+              },
               "progress": {
-                "completedMissionCount": 0,
+                "completedMissionCount": 1,
                 "inProgressMissionCount": 0
               }
             }
@@ -204,6 +214,52 @@ void main() {
     expect(home.nickname, '나루');
     expect(home.latestDiagnostic?.diagnosticSessionId, 'diagnostic-session-id');
     expect(home.latestDiagnostic?.weakLinks, ['linear-function']);
+    expect(home.latestMission?.id, 'mission-id');
+    expect(home.completedMissionCount, 1);
+  });
+
+  test('learning repository decodes recovery series completed action', () async {
+    final repository = LearningApiRepository(
+      apiClient: ApiClient(
+        authStore: AuthStore()..updateAccessToken('jwt-token'),
+        httpClient: MockClient((request) async {
+          return _jsonResponse('''
+          {
+            "success": true,
+            "data": {
+              "user": {
+                "id": "user-id",
+                "nickname": "나루",
+                "emailVerified": true
+              },
+              "nextAction": "RECOVERY_SERIES_COMPLETED",
+              "latestDiagnostic": null,
+              "todayMission": null,
+              "latestMission": {
+                "id": "mission-id",
+                "diagnosticSessionId": "diagnostic-session-id",
+                "conceptTag": "function-substitution",
+                "title": "함수값 대입 10분 복구 미션",
+                "status": "COMPLETED",
+                "estimatedMinutes": 10,
+                "createdAt": "2026-04-30T00:00:00Z",
+                "completedAt": "2026-04-30T00:05:00Z"
+              },
+              "progress": {
+                "completedMissionCount": 1,
+                "inProgressMissionCount": 0
+              }
+            }
+          }
+          ''');
+        }),
+      ),
+    );
+
+    final home = await repository.getLearningHome();
+
+    expect(home.nextAction, LearningNextAction.recoverySeriesCompleted);
+    expect(home.latestMission?.status, 'COMPLETED');
   });
 
   test('learning repository decodes math areas', () async {
