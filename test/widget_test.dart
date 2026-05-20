@@ -210,6 +210,18 @@ void main() {
       expect(find.text('최근 회복 미션을 모두 완료했어요. 저장된 기록을 확인해 주세요.'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'verification link token is processed on app start',
+    (tester) async {
+      await tester.pumpWidget(_verificationLinkApp());
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('기록 불러오기'), findsNWidgets(2));
+      expect(find.text('이메일 인증이 완료됐어요. 로그인해 주세요.'), findsOneWidget);
+    },
+  );
 }
 
 Widget _mockApp() {
@@ -232,6 +244,18 @@ Widget _nextMissionHomeApp() {
     dependencies: NarooDependencies(
       authRepository: MockAuthRepository(),
       learningRepository: _NextMissionLearningRepository(),
+      diagnosticRepository: MockDiagnosticRepository(),
+      recoveryRepository: MockRecoveryRepository(),
+    ),
+  );
+}
+
+Widget _verificationLinkApp() {
+  return NarooApp(
+    initialVerificationToken: 'email-token',
+    dependencies: NarooDependencies(
+      authRepository: _VerificationLinkAuthRepository(),
+      learningRepository: MockLearningRepository(),
       diagnosticRepository: MockDiagnosticRepository(),
       recoveryRepository: MockRecoveryRepository(),
     ),
@@ -350,6 +374,22 @@ class _NextMissionLearningRepository implements LearningRepository {
       ),
       completedMissionCount: 1,
       inProgressMissionCount: 0,
+    );
+  }
+}
+
+class _VerificationLinkAuthRepository extends MockAuthRepository {
+  @override
+  Future<AuthProfile> verifyEmail({
+    required String token,
+    required String nickname,
+    required String email,
+  }) async {
+    expect(token, 'email-token');
+    return const AuthProfile(
+      nickname: 'QA Live',
+      email: 'qa@example.com',
+      emailVerified: true,
     );
   }
 }

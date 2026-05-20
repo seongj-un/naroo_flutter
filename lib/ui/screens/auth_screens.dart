@@ -52,6 +52,7 @@ class AuthScreen extends StatefulWidget {
     required this.mathStatusOptions,
     required this.isLoading,
     required this.errorMessage,
+    required this.statusMessage,
     required this.onModeChanged,
     required this.onBack,
     required this.onSignup,
@@ -62,6 +63,7 @@ class AuthScreen extends StatefulWidget {
   final List<String> mathStatusOptions;
   final bool isLoading;
   final String? errorMessage;
+  final String? statusMessage;
   final ValueChanged<AuthMode> onModeChanged;
   final VoidCallback onBack;
   final Future<void> Function({
@@ -118,10 +120,14 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           const SizedBox(height: 24),
           _ModeSwitch(mode: widget.mode, onChanged: widget.onModeChanged),
-          if (widget.isLoading || widget.errorMessage != null) ...[
+          if (widget.isLoading ||
+              widget.errorMessage != null ||
+              widget.statusMessage != null) ...[
             const SizedBox(height: 12),
             Text(
-              widget.isLoading ? '기록을 확인하는 중...' : widget.errorMessage!,
+              widget.isLoading
+                  ? '기록을 확인하는 중...'
+                  : widget.errorMessage ?? widget.statusMessage!,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -203,6 +209,7 @@ class EmailVerificationScreen extends StatefulWidget {
     required this.email,
     required this.isLoading,
     required this.errorMessage,
+    required this.statusMessage,
     required this.onVerify,
     required this.onLater,
   });
@@ -210,6 +217,7 @@ class EmailVerificationScreen extends StatefulWidget {
   final String email;
   final bool isLoading;
   final String? errorMessage;
+  final String? statusMessage;
   final Future<void> Function(String token) onVerify;
   final VoidCallback onLater;
 
@@ -254,12 +262,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           ),
           if (widget.isLoading ||
               widget.errorMessage != null ||
+              widget.statusMessage != null ||
               _message != null) ...[
             const SizedBox(height: 8),
             Text(
               widget.isLoading
                   ? '기록을 확인하는 중...'
-                  : widget.errorMessage ?? _message!,
+                  : widget.errorMessage ?? widget.statusMessage ?? _message!,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],

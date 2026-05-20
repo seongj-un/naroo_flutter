@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "/api/proxy?path=:path*"
+    },
+    {
+      "source": "/verify-email",
+      "destination": "/"
     }
   ]
 }

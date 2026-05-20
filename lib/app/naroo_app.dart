@@ -5,10 +5,16 @@ import 'naroo_shell.dart';
 import 'naroo_theme.dart';
 
 class NarooApp extends StatelessWidget {
-  const NarooApp({super.key, this.dependencies, this.startupError});
+  const NarooApp({
+    super.key,
+    this.dependencies,
+    this.startupError,
+    this.initialVerificationToken,
+  });
 
   final NarooDependencies? dependencies;
   final String? startupError;
+  final String? initialVerificationToken;
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +23,10 @@ class NarooApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildNarooTheme(),
       home: startupError == null
-          ? NarooShell(dependencies: dependencies ?? NarooDependencies.real())
+          ? NarooShell(
+              dependencies: dependencies ?? NarooDependencies.real(),
+              initialVerificationToken: initialVerificationToken,
+            )
           : _StartupErrorScreen(message: startupError!),
     );
   }

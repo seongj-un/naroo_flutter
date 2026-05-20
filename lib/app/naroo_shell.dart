@@ -7,9 +7,14 @@ import 'naroo_dependencies.dart';
 import 'naroo_flow_controller.dart';
 
 class NarooShell extends StatefulWidget {
-  const NarooShell({super.key, required this.dependencies});
+  const NarooShell({
+    super.key,
+    required this.dependencies,
+    this.initialVerificationToken,
+  });
 
   final NarooDependencies dependencies;
+  final String? initialVerificationToken;
 
   @override
   State<NarooShell> createState() => _NarooShellState();
@@ -27,6 +32,12 @@ class _NarooShellState extends State<NarooShell> {
       diagnosticRepository: widget.dependencies.diagnosticRepository,
       recoveryRepository: widget.dependencies.recoveryRepository,
     );
+    final initialVerificationToken = widget.initialVerificationToken;
+    if (initialVerificationToken != null && initialVerificationToken.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _controller.handleEmailVerificationLink(initialVerificationToken);
+      });
+    }
   }
 
   @override
@@ -50,6 +61,7 @@ class _NarooShellState extends State<NarooShell> {
             mathStatusOptions: _controller.mathStatusOptions,
             isLoading: _controller.isAuthBusy,
             errorMessage: _controller.authErrorMessage,
+            statusMessage: _controller.authStatusMessage,
             onModeChanged: _controller.updateAuthMode,
             onBack: _controller.goToEntry,
             onSignup: _controller.submitSignup,
@@ -59,6 +71,7 @@ class _NarooShellState extends State<NarooShell> {
             email: _controller.email,
             isLoading: _controller.isAuthBusy,
             errorMessage: _controller.authErrorMessage,
+            statusMessage: _controller.authStatusMessage,
             onVerify: _controller.completeVerification,
             onLater: _controller.skipVerificationForNow,
           ),

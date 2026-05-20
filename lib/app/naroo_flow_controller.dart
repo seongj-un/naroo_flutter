@@ -57,6 +57,7 @@ class NarooFlowController extends ChangeNotifier {
   bool isAuthBusy = false;
   bool isFlowBusy = false;
   String? authErrorMessage;
+  String? authStatusMessage;
   String? flowErrorMessage;
 
   List<String> get mathStatusOptions => learningRepository.mathStatusOptions;
@@ -166,16 +167,22 @@ class NarooFlowController extends ChangeNotifier {
 
   void openAuth(AuthMode mode) {
     authMode = mode;
+    authStatusMessage = null;
+    authErrorMessage = null;
     stage = NarooStage.auth;
     notifyListeners();
   }
 
   void updateAuthMode(AuthMode mode) {
     authMode = mode;
+    authStatusMessage = null;
+    authErrorMessage = null;
     notifyListeners();
   }
 
   void goToEntry() {
+    authStatusMessage = null;
+    authErrorMessage = null;
     stage = NarooStage.entry;
     notifyListeners();
   }
@@ -198,6 +205,7 @@ class NarooFlowController extends ChangeNotifier {
       this.nickname = profile.nickname;
       this.email = profile.email;
       emailVerified = profile.emailVerified;
+      authStatusMessage = null;
       stage = NarooStage.emailVerification;
     });
   }
@@ -214,6 +222,7 @@ class NarooFlowController extends ChangeNotifier {
       nickname = profile.nickname;
       email = profile.email;
       emailVerified = profile.emailVerified;
+      authStatusMessage = null;
       await _loadLearningHome();
     });
   }
@@ -228,7 +237,28 @@ class NarooFlowController extends ChangeNotifier {
       nickname = profile.nickname;
       email = profile.email;
       emailVerified = profile.emailVerified;
+      authStatusMessage = null;
       await _loadLearningHome();
+    });
+  }
+
+  Future<void> handleEmailVerificationLink(String token) {
+    stage = NarooStage.emailVerification;
+    authStatusMessage = '인증 링크를 확인하는 중...';
+    notifyListeners();
+
+    return _runAuthAction(() async {
+      final profile = await authRepository.verifyEmail(
+        token: token,
+        nickname: nickname,
+        email: email,
+      );
+      nickname = profile.nickname;
+      email = profile.email;
+      emailVerified = profile.emailVerified;
+      authMode = AuthMode.login;
+      authStatusMessage = '이메일 인증이 완료됐어요. 로그인해 주세요.';
+      stage = NarooStage.auth;
     });
   }
 
@@ -387,6 +417,7 @@ class NarooFlowController extends ChangeNotifier {
     try {
       await action();
     } catch (error) {
+      authStatusMessage = null;
       authErrorMessage = _authFailureMessage(error);
     } finally {
       isAuthBusy = false;
