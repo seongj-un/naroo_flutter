@@ -4,6 +4,7 @@ import 'package:naroo_flutter/app/naroo_dependencies.dart';
 import 'package:naroo_flutter/data/mock_repositories.dart';
 import 'package:naroo_flutter/domain/learning_models.dart';
 import 'package:naroo_flutter/domain/repositories/recovery_repository.dart';
+import 'package:naroo_flutter/domain/repositories/learning_repository.dart';
 import 'package:naroo_flutter/naroo_app.dart';
 
 void main() {
@@ -56,6 +57,7 @@ void main() {
 
     expect(find.text('student01님, 오늘은 한 가지 위치만 찾으면 돼요.'), findsOneWidget);
     expect(find.text('시작 위치 고르기'), findsOneWidget);
+    expect(find.text('저장된 기록 보기'), findsOneWidget);
   });
 
   testWidgets('student can complete the mock diagnostic and recovery loop', (
@@ -192,6 +194,22 @@ void main() {
       expect(find.text('학습 홈으로 돌아가서 다음 상태를 확인해 주세요.'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'home starts the next recovery mission directly after a completed mission exists',
+    (tester) async {
+      await tester.pumpWidget(_nextMissionHomeApp());
+
+      await _login(tester);
+
+      expect(find.text('다음 복구 미션 시작하기'), findsOneWidget);
+      await tester.tap(find.text('다음 복구 미션 시작하기'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('다음 함수 미션'), findsOneWidget);
+      expect(find.text('미션 제출하기'), findsOneWidget);
+    },
+  );
 }
 
 Widget _mockApp() {
@@ -205,6 +223,17 @@ Widget _completedMissionApp() {
       learningRepository: MockLearningRepository(),
       diagnosticRepository: MockDiagnosticRepository(),
       recoveryRepository: _CompletedMissionRecoveryRepository(),
+    ),
+  );
+}
+
+Widget _nextMissionHomeApp() {
+  return NarooApp(
+    dependencies: NarooDependencies(
+      authRepository: MockAuthRepository(),
+      learningRepository: _NextMissionLearningRepository(),
+      diagnosticRepository: MockDiagnosticRepository(),
+      recoveryRepository: _NextMissionRecoveryRepository(),
     ),
   );
 }
@@ -278,5 +307,94 @@ class _CompletedMissionRecoveryRepository implements RecoveryRepository {
     required String answerText,
   }) {
     throw UnimplementedError();
+  }
+}
+
+class _NextMissionLearningRepository implements LearningRepository {
+  @override
+  List<String> get mathStatusOptions => MockLearningRepository().mathStatusOptions;
+
+  @override
+  Future<List<MathAreaOption>> getMathAreas() {
+    return MockLearningRepository().getMathAreas();
+  }
+
+  @override
+  Future<LearningHome> getLearningHome() async {
+    return const LearningHome(
+      nickname: 'student01',
+      emailVerified: true,
+      nextAction: LearningNextAction.createRecoveryMission,
+      latestDiagnostic: LearningDiagnosticSummary(
+        diagnosticSessionId: 'diagnostic-1',
+        mathArea: 'FUNCTION',
+        status: 'COMPLETED',
+        totalQuestionCount: 2,
+        correctCount: 1,
+        wrongCount: 0,
+        unknownCount: 1,
+        weakLinks: ['function_substitution'],
+        primaryRecoveryConcept: 'function_substitution',
+        summary: '다음 미션으로 이어가면 돼요.',
+      ),
+      todayMission: null,
+      completedMissionCount: 1,
+      inProgressMissionCount: 0,
+    );
+  }
+}
+
+class _NextMissionRecoveryRepository implements RecoveryRepository {
+  @override
+  RecoveryMission get firstMission => const RecoveryMission(
+    id: 'next-mission',
+    diagnosticSessionId: 'diagnostic-1',
+    title: '다음 함수 미션',
+    estimatedTime: '예상 시간 10분',
+    explanation: '다음 개념을 바로 이어갑니다.',
+    challenge: '식에 값을 넣는 순서를 한 줄씩 적어보세요.',
+    hint: '대입할 값을 먼저 표시해 보세요.',
+    status: 'IN_PROGRESS',
+  );
+
+  @override
+  Future<RecoveryMission> createMission({
+    required String diagnosticSessionId,
+  }) async {
+    return firstMission;
+  }
+
+  @override
+  Future<RecoveryMission> getMission(String recoveryMissionId) async {
+    return firstMission;
+  }
+
+  @override
+  String nextAction({required bool missionCompleted}) {
+    return missionCompleted
+        ? '학습 홈에서 다음 행동을 확인해 주세요.'
+        : '진행 중인 회복 미션을 이어갈 수 있어요.';
+  }
+
+  @override
+  Future<RecoverySubmissionFeedback> submitMission({
+    required String recoveryMissionId,
+    required String answerText,
+  }) async {
+    return RecoverySubmissionFeedback(
+      title: '복구 기록 완료',
+      message: '다음 약점 개념 미션 이어가기',
+      nextAction: nextAction(missionCompleted: true),
+      mission: const RecoveryMission(
+        id: 'next-mission',
+        diagnosticSessionId: 'diagnostic-1',
+        title: '다음 함수 미션',
+        estimatedTime: '예상 시간 10분',
+        explanation: '다음 개념을 바로 이어갑니다.',
+        challenge: '식에 값을 넣는 순서를 한 줄씩 적어보세요.',
+        hint: '대입할 값을 먼저 표시해 보세요.',
+        status: 'COMPLETED',
+      ),
+    );
   }
 }

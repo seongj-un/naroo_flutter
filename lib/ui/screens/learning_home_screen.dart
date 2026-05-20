@@ -40,6 +40,14 @@ class LearningHomeScreen extends StatelessWidget {
             buttonLabel: buttonLabel,
             onPressed: onPrimaryAction,
           ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: onSavedProgress,
+              child: const Text('저장된 기록 보기'),
+            ),
+          ),
           const SizedBox(height: 16),
           ProgressLine(
             label: emailVerified ? '다음 행동을 찾았어요' : '인증 후 다음 행동을 찾을게요',

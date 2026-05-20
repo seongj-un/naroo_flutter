@@ -51,6 +51,8 @@ class NarooFlowController extends ChangeNotifier {
   RecoverySubmissionFeedback? recoveryFeedback;
   bool missionCompleted = false;
   bool emailVerified = false;
+  int completedMissionCount = 0;
+  int inProgressMissionCount = 0;
   bool isAuthBusy = false;
   bool isFlowBusy = false;
   String? authErrorMessage;
@@ -89,7 +91,9 @@ class NarooFlowController extends ChangeNotifier {
     return switch (learningNextAction) {
       LearningNextAction.emailVerificationRequired => '이메일 확인이 필요해요',
       LearningNextAction.startDiagnostic => '첫 진단을 시작할 수 있어요',
-      LearningNextAction.createRecoveryMission => '약한 연결부터 다시 시작할 수 있어요',
+      LearningNextAction.createRecoveryMission => completedMissionCount > 0
+          ? '다음 복구 미션을 이어갈 수 있어요'
+          : '약한 연결부터 다시 시작할 수 있어요',
       LearningNextAction.continueRecoveryMission => '진행 중인 복습을 이어갈 수 있어요',
     };
   }
@@ -105,8 +109,9 @@ class NarooFlowController extends ChangeNotifier {
         '기록을 안전하게 저장한 뒤 시작 위치를 이어갈 수 있어요.',
       LearningNextAction.startDiagnostic =>
         '아직 첫 기록이 없어요. 지금 가장 막히는 영역부터 가볍게 확인해 볼게요.',
-      LearningNextAction.createRecoveryMission =>
-        '진단 결과를 저장해뒀어요. 가장 먼저 다시 연결할 개념부터 10분 미션으로 이어갈 수 있어요.',
+      LearningNextAction.createRecoveryMission => completedMissionCount > 0
+          ? '이전 미션은 끝났어요. 같은 진단 결과에서 다음으로 다시 볼 개념을 바로 이어갈 수 있어요.'
+          : '진단 결과를 저장해뒀어요. 가장 먼저 다시 연결할 개념부터 10분 미션으로 이어갈 수 있어요.',
       LearningNextAction.continueRecoveryMission =>
         '오늘 미션이 이미 준비돼 있어요. 끊긴 자리부터 바로 이어가면 돼요.',
     };
@@ -121,7 +126,8 @@ class NarooFlowController extends ChangeNotifier {
     return switch (learningNextAction) {
       LearningNextAction.emailVerificationRequired => '이메일 인증하기',
       LearningNextAction.startDiagnostic => '시작 위치 고르기',
-      LearningNextAction.createRecoveryMission => '진단 결과 보기',
+      LearningNextAction.createRecoveryMission =>
+        completedMissionCount > 0 ? '다음 복구 미션 시작하기' : '진단 결과 보기',
       LearningNextAction.continueRecoveryMission => '진행 중인 미션 이어가기',
     };
   }
@@ -130,8 +136,9 @@ class NarooFlowController extends ChangeNotifier {
     return switch (learningNextAction) {
       LearningNextAction.emailVerificationRequired => '이메일 인증 후 이어서 진행해 주세요.',
       LearningNextAction.startDiagnostic => '시작 위치를 고르고 첫 진단을 시작해 주세요.',
-      LearningNextAction.createRecoveryMission =>
-        '진단 결과를 확인하고 첫 회복 미션을 시작해 주세요.',
+      LearningNextAction.createRecoveryMission => completedMissionCount > 0
+          ? '이전 미션은 저장됐어요. 다음 회복 미션을 바로 시작해 주세요.'
+          : '진단 결과를 확인하고 첫 회복 미션을 시작해 주세요.',
       LearningNextAction.continueRecoveryMission => '진행 중인 회복 미션을 이어가 주세요.',
     };
   }
@@ -140,7 +147,8 @@ class NarooFlowController extends ChangeNotifier {
     return switch (learningNextAction) {
       LearningNextAction.emailVerificationRequired => '이메일 인증하기',
       LearningNextAction.startDiagnostic => '시작 위치 고르기',
-      LearningNextAction.createRecoveryMission => '진단 결과 보기',
+      LearningNextAction.createRecoveryMission =>
+        completedMissionCount > 0 ? '다음 미션 시작하기' : '진단 결과 보기',
       LearningNextAction.continueRecoveryMission => '미션 이어가기',
     };
   }
@@ -319,6 +327,10 @@ class NarooFlowController extends ChangeNotifier {
           stage = NarooStage.startingPoint;
           break;
         case LearningNextAction.createRecoveryMission:
+          if (completedMissionCount > 0) {
+            await _createRecoveryMission();
+            break;
+          }
           await _loadDiagnosticResult();
           stage = NarooStage.result;
           break;
@@ -422,6 +434,8 @@ class NarooFlowController extends ChangeNotifier {
     }
 
     missionCompleted = home.todayMission?.status == 'COMPLETED';
+    completedMissionCount = home.completedMissionCount;
+    inProgressMissionCount = home.inProgressMissionCount;
     stage = NarooStage.home;
   }
 
