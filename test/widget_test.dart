@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:naroo_flutter/app/naroo_dependencies.dart';
+import 'package:naroo_flutter/data/mock_repositories.dart';
+import 'package:naroo_flutter/domain/learning_models.dart';
+import 'package:naroo_flutter/domain/repositories/recovery_repository.dart';
 import 'package:naroo_flutter/naroo_app.dart';
 
 void main() {
@@ -136,10 +139,74 @@ void main() {
     expect(find.text('마지막 위치를 저장해뒀어요.'), findsOneWidget);
     expect(find.text('저장된 학습 상태를 확인했어요'), findsOneWidget);
   });
+
+  testWidgets(
+    'completed recovery mission returns feedback instead of reopening mission form',
+    (tester) async {
+      await _setTallPhoneViewport(tester);
+      await tester.pumpWidget(_completedMissionApp());
+
+      await _login(tester);
+      await tester.tap(find.text('시작 위치 고르기'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('함수'));
+      await tester.pumpAndSettle();
+      await _scrollToText(tester, '가볍게 확인하기');
+      await tester.tap(find.text('가볍게 확인하기'));
+      await tester.pumpAndSettle();
+
+      await _scrollToText(tester, '일차함수처럼 일정하게 증가해요');
+      await tester.tap(
+        find.ancestor(
+          of: find.text('일차함수처럼 일정하게 증가해요'),
+          matching: find.byType(InkWell),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await _scrollToText(tester, '다음 문항');
+      await tester.tap(find.widgetWithText(ElevatedButton, '다음 문항'));
+      await tester.pumpAndSettle();
+
+      await _scrollToText(tester, '잘 모르겠어요');
+      await tester.tap(
+        find.ancestor(of: find.text('잘 모르겠어요'), matching: find.byType(InkWell)),
+      );
+      await tester.pumpAndSettle();
+      await _scrollToText(tester, '다음 문항');
+      await tester.tap(find.widgetWithText(ElevatedButton, '다음 문항'));
+      await tester.pumpAndSettle();
+
+      await _scrollToText(tester, '1을 지나요');
+      await tester.tap(
+        find.ancestor(of: find.text('1을 지나요'), matching: find.byType(InkWell)),
+      );
+      await tester.pumpAndSettle();
+      await _scrollToText(tester, '결과 보기');
+      await tester.tap(find.widgetWithText(ElevatedButton, '결과 보기'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('첫 10분 복습 시작'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('오늘 미션은 이미 완료됐어요.'), findsOneWidget);
+      expect(find.text('학습 홈으로 돌아가서 다음 상태를 확인해 주세요.'), findsOneWidget);
+    },
+  );
 }
 
 Widget _mockApp() {
   return NarooApp(dependencies: NarooDependencies.mock());
+}
+
+Widget _completedMissionApp() {
+  return NarooApp(
+    dependencies: NarooDependencies(
+      authRepository: MockAuthRepository(),
+      learningRepository: MockLearningRepository(),
+      diagnosticRepository: MockDiagnosticRepository(),
+      recoveryRepository: _CompletedMissionRecoveryRepository(),
+    ),
+  );
 }
 
 Future<void> _scrollToText(WidgetTester tester, String text) async {
@@ -173,4 +240,43 @@ Future<void> _login(WidgetTester tester) async {
   );
   await tester.tap(find.text('기록 불러오기').last);
   await tester.pumpAndSettle();
+}
+
+class _CompletedMissionRecoveryRepository implements RecoveryRepository {
+  @override
+  RecoveryMission get firstMission => const RecoveryMission(
+    id: 'completed-mission',
+    diagnosticSessionId: 'mock-diagnostic-session',
+    title: '이미 완료된 함수 미션',
+    estimatedTime: '예상 시간 10분',
+    explanation: '이 미션은 이미 끝난 상태로 돌아왔어요.',
+    challenge: '다음 상태만 확인하면 돼요.',
+    hint: '학습 홈으로 돌아가세요.',
+    status: 'COMPLETED',
+  );
+
+  @override
+  Future<RecoveryMission> createMission({
+    required String diagnosticSessionId,
+  }) async {
+    return firstMission;
+  }
+
+  @override
+  Future<RecoveryMission> getMission(String recoveryMissionId) async {
+    return firstMission;
+  }
+
+  @override
+  String nextAction({required bool missionCompleted}) {
+    return '학습 홈에서 다음 행동을 확인해 주세요.';
+  }
+
+  @override
+  Future<RecoverySubmissionFeedback> submitMission({
+    required String recoveryMissionId,
+    required String answerText,
+  }) {
+    throw UnimplementedError();
+  }
 }

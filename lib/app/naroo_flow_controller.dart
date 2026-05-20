@@ -336,13 +336,21 @@ class NarooFlowController extends ChangeNotifier {
   Future<void> completeRecoveryMission(String answerText) {
     return _runFlowAction(() async {
       final mission = activeRecoveryMission ?? recoveryRepository.firstMission;
-      recoveryFeedback = await recoveryRepository.submitMission(
-        recoveryMissionId: mission.id,
-        answerText: answerText,
-      );
-      activeRecoveryMission = recoveryFeedback?.mission ?? mission;
-      missionCompleted = true;
-      stage = NarooStage.missionFeedback;
+      try {
+        recoveryFeedback = await recoveryRepository.submitMission(
+          recoveryMissionId: mission.id,
+          answerText: answerText,
+        );
+        activeRecoveryMission = recoveryFeedback?.mission ?? mission;
+        missionCompleted = true;
+        stage = NarooStage.missionFeedback;
+      } on ApiError catch (error) {
+        if (error.errorCode == 'RECOVERY_MISSION_ALREADY_COMPLETED') {
+          _showCompletedMissionFeedback(mission);
+          return;
+        }
+        rethrow;
+      }
     });
   }
 
@@ -443,6 +451,10 @@ class NarooFlowController extends ChangeNotifier {
     activeRecoveryMission = await recoveryRepository.createMission(
       diagnosticSessionId: sessionId,
     );
+    if (activeRecoveryMission?.status == 'COMPLETED') {
+      _showCompletedMissionFeedback(activeRecoveryMission!);
+      return;
+    }
     stage = NarooStage.recoveryMission;
   }
 
@@ -454,7 +466,23 @@ class NarooFlowController extends ChangeNotifier {
     }
 
     activeRecoveryMission = await recoveryRepository.getMission(missionId);
+    if (activeRecoveryMission?.status == 'COMPLETED') {
+      _showCompletedMissionFeedback(activeRecoveryMission!);
+      return;
+    }
     stage = NarooStage.recoveryMission;
+  }
+
+  void _showCompletedMissionFeedback(RecoveryMission mission) {
+    activeRecoveryMission = mission;
+    recoveryFeedback = RecoverySubmissionFeedback(
+      title: '오늘 미션은 이미 완료됐어요.',
+      message: '학습 홈으로 돌아가서 다음 상태를 확인해 주세요.',
+      nextAction: recoveryRepository.nextAction(missionCompleted: true),
+      mission: mission,
+    );
+    missionCompleted = true;
+    stage = NarooStage.missionFeedback;
   }
 
   String _authFailureMessage(Object error) {
