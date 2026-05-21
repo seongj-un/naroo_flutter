@@ -129,6 +129,7 @@ class ApiClient {
     throw ApiError(
       status: response.statusCode,
       errorCode: _extractErrorCode(data) ?? 'GLOBAL_BAD_RESPONSE',
+      headers: response.headers,
     );
   }
 
@@ -142,12 +143,14 @@ class ApiClient {
       throw ApiError(
         status: response.statusCode,
         errorCode: 'GLOBAL_BAD_RESPONSE',
+        headers: response.headers,
       );
     }
 
     throw ApiError(
       status: response.statusCode,
       errorCode: 'GLOBAL_BAD_RESPONSE',
+      headers: response.headers,
     );
   }
 

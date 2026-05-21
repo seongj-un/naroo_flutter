@@ -20,6 +20,8 @@ abstract interface class AuthRepository {
     required String email,
   });
 
+  Future<EmailVerificationResendResult> resendVerificationEmail();
+
   Future<void> reissue();
 
   Future<AuthProfile> me();

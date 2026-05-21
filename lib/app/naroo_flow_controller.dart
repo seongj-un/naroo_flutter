@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../api/api_types.dart';
@@ -20,6 +22,14 @@ enum NarooStage {
   recoveryMission,
   missionFeedback,
   savedProgress,
+}
+
+enum AuthAction {
+  signup,
+  login,
+  verifyCode,
+  verifyLink,
+  resendVerificationEmail,
 }
 
 class NarooFlowController extends ChangeNotifier {
@@ -57,9 +67,14 @@ class NarooFlowController extends ChangeNotifier {
   bool isAuthBusy = false;
   bool isFlowBusy = false;
   bool isVerificationLinkFlow = false;
+  bool hasAuthenticatedSession = false;
+  bool showVerificationLinkFailureState = false;
+  DateTime? verificationResendAvailableAt;
+  Timer? _verificationResendTimer;
   String? authErrorMessage;
   String? authStatusMessage;
   String? flowErrorMessage;
+  AuthAction? _currentAuthAction;
 
   List<String> get mathStatusOptions => learningRepository.mathStatusOptions;
 
@@ -170,9 +185,39 @@ class NarooFlowController extends ChangeNotifier {
       diagnosticResult != null ||
       diagnosticAnswers.length == diagnosticQuestions.length;
 
+  bool get canResendVerificationEmail =>
+      hasAuthenticatedSession && !emailVerified;
+
+  bool get showResendVerificationAction => canResendVerificationEmail;
+
+  String? get resendCooldownStatusText => _verificationResendStatusText();
+
+  bool get isResendCoolingDown {
+    final availableAt = verificationResendAvailableAt;
+    if (availableAt == null) {
+      return false;
+    }
+    return DateTime.now().toUtc().isBefore(availableAt);
+  }
+
+  Duration? get resendCooldownRemaining {
+    final availableAt = verificationResendAvailableAt;
+    if (availableAt == null) {
+      return null;
+    }
+    final remaining = availableAt.difference(DateTime.now().toUtc());
+    if (remaining.isNegative || remaining.inSeconds <= 0) {
+      return Duration.zero;
+    }
+    return remaining;
+  }
+
   void openAuth(AuthMode mode) {
     authMode = mode;
     isVerificationLinkFlow = false;
+    showVerificationLinkFailureState = false;
+    verificationResendAvailableAt = null;
+    _stopVerificationResendTimer();
     authStatusMessage = null;
     authErrorMessage = null;
     stage = NarooStage.auth;
@@ -182,6 +227,7 @@ class NarooFlowController extends ChangeNotifier {
   void updateAuthMode(AuthMode mode) {
     authMode = mode;
     isVerificationLinkFlow = false;
+    showVerificationLinkFailureState = false;
     authStatusMessage = null;
     authErrorMessage = null;
     notifyListeners();
@@ -189,6 +235,9 @@ class NarooFlowController extends ChangeNotifier {
 
   void goToEntry() {
     isVerificationLinkFlow = false;
+    showVerificationLinkFailureState = false;
+    verificationResendAvailableAt = null;
+    _stopVerificationResendTimer();
     authStatusMessage = null;
     authErrorMessage = null;
     stage = NarooStage.entry;
@@ -202,7 +251,8 @@ class NarooFlowController extends ChangeNotifier {
     required String nickname,
     required String mathStatus,
   }) {
-    return _runAuthAction(() async {
+    hasAuthenticatedSession = false;
+    return _runAuthAction(AuthAction.signup, () async {
       final profile = await authRepository.signUp(
         loginId: loginId,
         email: email,
@@ -214,6 +264,9 @@ class NarooFlowController extends ChangeNotifier {
       this.email = profile.email;
       emailVerified = profile.emailVerified;
       isVerificationLinkFlow = false;
+      showVerificationLinkFailureState = false;
+      verificationResendAvailableAt = null;
+      _stopVerificationResendTimer();
       authStatusMessage = '${profile.email}로 인증 링크를 보냈어요. 메일의 링크를 열거나 인증 코드를 붙여 넣어 주세요.';
       stage = NarooStage.emailVerification;
     });
@@ -223,7 +276,7 @@ class NarooFlowController extends ChangeNotifier {
     required String loginId,
     required String password,
   }) {
-    return _runAuthAction(() async {
+    return _runAuthAction(AuthAction.login, () async {
       final profile = await authRepository.login(
         loginId: loginId,
         password: password,
@@ -231,14 +284,16 @@ class NarooFlowController extends ChangeNotifier {
       nickname = profile.nickname;
       email = profile.email;
       emailVerified = profile.emailVerified;
+      hasAuthenticatedSession = true;
       isVerificationLinkFlow = false;
+      showVerificationLinkFailureState = false;
       authStatusMessage = null;
       await _loadLearningHome();
     });
   }
 
   Future<void> completeVerification(String token) {
-    return _runAuthAction(() async {
+    return _runAuthAction(AuthAction.verifyCode, () async {
       final profile = await authRepository.verifyEmail(
         token: token,
         nickname: nickname,
@@ -248,18 +303,68 @@ class NarooFlowController extends ChangeNotifier {
       email = profile.email;
       emailVerified = profile.emailVerified;
       isVerificationLinkFlow = false;
+      showVerificationLinkFailureState = false;
       authStatusMessage = null;
       await _loadLearningHome();
     });
   }
 
-  Future<void> handleEmailVerificationLink(String token) {
-    isVerificationLinkFlow = true;
-    stage = NarooStage.emailVerification;
-    authStatusMessage = '인증 링크를 확인하는 중...';
+  Future<void> resendVerificationEmail() async {
+    if (!canResendVerificationEmail || isResendCoolingDown) {
+      notifyListeners();
+      return;
+    }
+
+    isAuthBusy = true;
+    authErrorMessage = null;
+    authStatusMessage = null;
+    _currentAuthAction = AuthAction.resendVerificationEmail;
     notifyListeners();
 
-    return _runAuthAction(() async {
+    try {
+      final result = await authRepository.resendVerificationEmail();
+      email = result.email;
+      emailVerified = result.emailVerified;
+      hasAuthenticatedSession = true;
+      _setVerificationResendCooldown(result.nextRetryAt);
+      authStatusMessage = '${result.email}로 인증 메일을 다시 보냈어요.';
+      showVerificationLinkFailureState = false;
+    } on ApiError catch (error) {
+      if (error.errorCode == 'AUTH_UNAUTHORIZED') {
+        isVerificationLinkFlow = false;
+        showVerificationLinkFailureState = false;
+        authMode = AuthMode.login;
+        authErrorMessage = null;
+        authStatusMessage = '인증 메일을 다시 보내려면 먼저 로그인해 주세요.';
+        stage = NarooStage.auth;
+      } else if (error.errorCode == 'AUTH_EMAIL_ALREADY_VERIFIED') {
+        emailVerified = true;
+        authErrorMessage = null;
+        authStatusMessage = '이미 이메일 인증이 완료된 계정이에요. 학습 홈으로 이동할게요.';
+        await _loadLearningHome();
+      } else if (error.errorCode ==
+          'AUTH_EMAIL_VERIFICATION_RESEND_TOO_SOON') {
+        _setVerificationResendCooldown(_retryAtFromError(error));
+        authStatusMessage = null;
+      } else {
+        authStatusMessage = null;
+        authErrorMessage = _authFailureMessage(error);
+      }
+    } catch (error) {
+      authStatusMessage = null;
+      authErrorMessage = _authFailureMessage(error);
+    } finally {
+      isAuthBusy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> handleEmailVerificationLink(String token) {
+    isVerificationLinkFlow = true;
+    showVerificationLinkFailureState = false;
+    stage = NarooStage.emailVerification;
+    authStatusMessage = '인증 링크를 확인하는 중...';
+    return _runAuthAction(AuthAction.verifyLink, () async {
       final profile = await authRepository.verifyEmail(
         token: token,
         nickname: nickname,
@@ -269,6 +374,7 @@ class NarooFlowController extends ChangeNotifier {
       email = profile.email;
       emailVerified = profile.emailVerified;
       isVerificationLinkFlow = false;
+      showVerificationLinkFailureState = false;
       authMode = AuthMode.login;
       authStatusMessage = '이메일 인증이 완료됐어요. 로그인해 주세요.';
       stage = NarooStage.auth;
@@ -277,18 +383,23 @@ class NarooFlowController extends ChangeNotifier {
 
   void skipVerificationForNow() {
     isVerificationLinkFlow = false;
+    showVerificationLinkFailureState = false;
+    verificationResendAvailableAt = null;
+    _stopVerificationResendTimer();
     stage = NarooStage.home;
     notifyListeners();
   }
 
   void goToEmailVerification() {
     isVerificationLinkFlow = false;
+    showVerificationLinkFailureState = false;
     stage = NarooStage.emailVerification;
     notifyListeners();
   }
 
   void switchVerificationLinkFailureToCodeEntry() {
     isVerificationLinkFlow = false;
+    showVerificationLinkFailureState = false;
     authErrorMessage = null;
     authStatusMessage = '메일에 적힌 인증 코드를 붙여 넣어 주세요.';
     stage = NarooStage.emailVerification;
@@ -432,18 +543,30 @@ class NarooFlowController extends ChangeNotifier {
     return openHomePrimaryAction();
   }
 
-  Future<void> _runAuthAction(Future<void> Function() action) async {
+  Future<void> _runAuthAction(
+    AuthAction action,
+    Future<void> Function() actionBody,
+  ) async {
     isAuthBusy = true;
     authErrorMessage = null;
+    _currentAuthAction = action;
     notifyListeners();
 
     try {
-      await action();
+      await actionBody();
     } catch (error) {
       authStatusMessage = null;
-      authErrorMessage = _authFailureMessage(error);
+      if (action == AuthAction.verifyLink) {
+        await _handleVerificationLinkFailure(error);
+      } else {
+        authErrorMessage = _authFailureMessage(error);
+      }
+      if (action == AuthAction.verifyLink) {
+        showVerificationLinkFailureState = true;
+      }
     } finally {
       isAuthBusy = false;
+      _currentAuthAction = null;
       notifyListeners();
     }
   }
@@ -495,6 +618,7 @@ class NarooFlowController extends ChangeNotifier {
     missionCompleted =
         home.todayMission?.status == 'COMPLETED' ||
         home.nextAction == LearningNextAction.recoverySeriesCompleted;
+    hasAuthenticatedSession = true;
     completedMissionCount = home.completedMissionCount;
     inProgressMissionCount = home.inProgressMissionCount;
     stage = NarooStage.home;
@@ -569,28 +693,86 @@ class NarooFlowController extends ChangeNotifier {
   }
 
   String _authFailureMessage(Object error) {
+    final action = _currentAuthAction;
     if (error is ApiError) {
+      switch (action) {
+        case AuthAction.signup:
+          return switch (error.errorCode) {
+            'AUTH_EMAIL_ALREADY_EXISTS' =>
+              '이미 가입된 이메일이에요. 바로 로그인하거나 다른 이메일을 사용해 주세요.',
+            'AUTH_LOGIN_ID_ALREADY_EXISTS' =>
+              '이미 사용 중인 아이디예요. 다른 아이디로 다시 시도해 주세요.',
+            'GLOBAL_VALIDATION_ERROR' =>
+              '회원가입 정보를 다시 확인해 주세요.',
+            _ => '회원가입을 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+          };
+        case AuthAction.login:
+          return switch (error.errorCode) {
+            'AUTH_INVALID_CREDENTIALS' ||
+            'AUTH_UNAUTHORIZED' =>
+              '아이디나 비밀번호가 맞지 않아요. 다시 확인해 주세요.',
+            'GLOBAL_VALIDATION_ERROR' =>
+              '로그인 정보를 다시 확인해 주세요.',
+            _ => '로그인하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+          };
+        case AuthAction.verifyCode:
+          return switch (error.errorCode) {
+            'AUTH_INVALID_EMAIL_VERIFICATION_TOKEN' =>
+              '인증 코드가 올바르지 않아요. 메일의 최신 코드를 다시 확인해 주세요.',
+            'AUTH_EMAIL_ALREADY_VERIFIED' =>
+              '이미 이메일 인증이 완료된 계정이에요.',
+            _ => '이메일 인증을 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+          };
+        case AuthAction.verifyLink:
+          return switch (error.errorCode) {
+            'AUTH_INVALID_EMAIL_VERIFICATION_TOKEN' =>
+              '인증 링크가 만료됐거나 이미 사용됐어요. 메일에서 최신 링크를 다시 열어 주세요.',
+            'AUTH_EMAIL_ALREADY_VERIFIED' =>
+              '이미 이메일 인증이 완료된 계정이에요. 로그인해 주세요.',
+            _ => '인증 링크를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+          };
+        case AuthAction.resendVerificationEmail:
+          if (error.errorCode == 'AUTH_EMAIL_VERIFICATION_RESEND_TOO_SOON') {
+            return _verificationResendStatusText() ??
+                '방금 인증 메일을 보냈어요. 잠시 후 다시 시도해 주세요.';
+          }
+          return switch (error.errorCode) {
+            'AUTH_EMAIL_ALREADY_VERIFIED' => '이미 이메일 인증이 완료된 계정이에요.',
+            'AUTH_UNAUTHORIZED' => '인증 메일을 다시 보내려면 먼저 로그인해 주세요.',
+            _ => '인증 메일을 다시 보내지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+          };
+        case null:
+          break;
+      }
+
       return switch (error.errorCode) {
-        'AUTH_INVALID_CREDENTIALS' => '아이디나 비밀번호가 맞지 않아요.',
-        'AUTH_UNAUTHORIZED' => '로그인에 실패했어요. 아이디와 비밀번호를 다시 확인해 주세요.',
-        'AUTH_EMAIL_ALREADY_EXISTS' => '이미 가입된 이메일이에요. 바로 로그인하거나 다른 이메일을 사용해 주세요.',
-        'AUTH_LOGIN_ID_ALREADY_EXISTS' => '이미 사용 중인 아이디예요. 다른 아이디로 다시 시도해 주세요.',
-        'AUTH_INVALID_EMAIL_VERIFICATION_TOKEN' =>
-          isVerificationLinkFlow
-              ? '인증 링크가 만료됐거나 이미 사용됐어요. 메일에서 최신 링크를 다시 열어 주세요.'
-              : '인증 코드가 올바르지 않아요. 메일의 최신 코드를 다시 확인해 주세요.',
         'AUTH_ACCESS_TOKEN_MISSING' ||
         'GLOBAL_UNAUTHORIZED' => '로그인이 만료됐어요. 다시 로그인해 주세요.',
-        'GLOBAL_VALIDATION_ERROR' => '입력한 정보를 다시 확인해 주세요.',
-        _ => '기록을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+        _ => '인증 상태를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
       };
     }
 
     if (_looksLikeNetworkError(error)) {
-      return '서버에 연결하지 못했어요. 네트워크와 API 주소를 확인해 주세요.';
+      return switch (action) {
+        AuthAction.signup => '회원가입 서버에 연결하지 못했어요. 네트워크 상태를 확인해 주세요.',
+        AuthAction.login => '로그인 서버에 연결하지 못했어요. 네트워크 상태를 확인해 주세요.',
+        AuthAction.verifyCode || AuthAction.verifyLink =>
+          '이메일 인증 서버에 연결하지 못했어요. 네트워크 상태를 확인해 주세요.',
+        AuthAction.resendVerificationEmail =>
+          '인증 메일 서버에 연결하지 못했어요. 네트워크 상태를 확인해 주세요.',
+        null => '서버에 연결하지 못했어요. 네트워크와 API 주소를 확인해 주세요.',
+      };
     }
 
-    return '기록을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.';
+    return switch (action) {
+      AuthAction.signup => '회원가입을 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+      AuthAction.login => '로그인하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+      AuthAction.verifyCode || AuthAction.verifyLink =>
+        '이메일 인증을 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+      AuthAction.resendVerificationEmail =>
+        '인증 메일을 다시 보내지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+      null => '인증 상태를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+    };
   }
 
   String _flowFailureMessage(Object error) {
@@ -635,5 +817,88 @@ class NarooFlowController extends ChangeNotifier {
       'SEQUENCE' => '수열',
       _ => '진단 결과',
     };
+  }
+
+  String _formatDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds < 0 ? 0 : duration.inSeconds;
+    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  String? _verificationResendStatusText() {
+    final remaining = resendCooldownRemaining;
+    if (remaining == null || remaining == Duration.zero) {
+      return null;
+    }
+    return '다시 보내기까지 ${_formatDuration(remaining)} 남았어요.';
+  }
+
+  DateTime _retryAtFromError(ApiError error) {
+    final retryAfter = error.headers['retry-after'];
+    if (retryAfter != null) {
+      final seconds = int.tryParse(retryAfter);
+      if (seconds != null && seconds > 0) {
+        return DateTime.now().toUtc().add(Duration(seconds: seconds));
+      }
+      final absolute = DateTime.tryParse(retryAfter);
+      if (absolute != null) {
+        return absolute.toUtc();
+      }
+    }
+
+    final availableAt = verificationResendAvailableAt;
+    if (availableAt != null) {
+      return availableAt;
+    }
+    return DateTime.now().toUtc().add(const Duration(seconds: 60));
+  }
+
+  void _setVerificationResendCooldown(DateTime nextRetryAt) {
+    verificationResendAvailableAt = nextRetryAt.toUtc();
+    _restartVerificationResendTimer();
+  }
+
+  void _restartVerificationResendTimer() {
+    _stopVerificationResendTimer();
+    if (!isResendCoolingDown) {
+      verificationResendAvailableAt = null;
+      return;
+    }
+    _verificationResendTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!isResendCoolingDown) {
+        verificationResendAvailableAt = null;
+        _stopVerificationResendTimer();
+      }
+      notifyListeners();
+    });
+  }
+
+  void _stopVerificationResendTimer() {
+    _verificationResendTimer?.cancel();
+    _verificationResendTimer = null;
+  }
+
+  Future<void> _handleVerificationLinkFailure(Object error) async {
+    authErrorMessage = _authFailureMessage(error);
+    showVerificationLinkFailureState = true;
+
+    try {
+      await authRepository.reissue();
+      final profile = await authRepository.me();
+      nickname = profile.nickname;
+      email = profile.email;
+      emailVerified = profile.emailVerified;
+      hasAuthenticatedSession = true;
+      return;
+    } catch (_) {
+      hasAuthenticatedSession = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopVerificationResendTimer();
+    super.dispose();
   }
 }

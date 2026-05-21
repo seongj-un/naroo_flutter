@@ -169,6 +169,69 @@ void main() {
     expect(profile.emailVerified, isFalse);
   });
 
+  test('resend verification email uses authenticated endpoint', () async {
+    final authStore = AuthStore()..updateAccessToken('jwt-token');
+    final repository = AuthApiRepository(
+      apiClient: ApiClient(
+        authStore: authStore,
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/api/auth/email/resend');
+          expect(request.method, 'POST');
+          expect(request.headers['Authorization'], 'Bearer jwt-token');
+          expect(request.body, isEmpty);
+          return _jsonResponse('''
+          {
+            "success": true,
+            "data": {
+              "userId": "user-id",
+              "email": "student@example.com",
+              "emailVerified": false,
+              "nextRetryAt": "2026-05-21T08:30:00Z"
+            }
+          }
+          ''');
+        }),
+      ),
+      authStore: authStore,
+    );
+
+    final result = await repository.resendVerificationEmail();
+
+    expect(result.email, 'student@example.com');
+    expect(result.emailVerified, isFalse);
+    expect(result.nextRetryAt, DateTime.parse('2026-05-21T08:30:00Z'));
+  });
+
+  test('ApiError keeps response headers for cooldown handling', () async {
+    final client = ApiClient(
+      authStore: AuthStore()..updateAccessToken('jwt-token'),
+      httpClient: MockClient((request) async {
+        return http.Response(
+          '{"success":false,"data":{"errorCode":"AUTH_EMAIL_VERIFICATION_RESEND_TOO_SOON"}}',
+          429,
+          headers: {'retry-after': '60'},
+        );
+      }),
+    );
+
+    expect(
+      () => client.post('/api/auth/email/resend', decode: (_) {}),
+      throwsA(
+        isA<ApiError>()
+            .having(
+              (error) => error.errorCode,
+              'errorCode',
+              'AUTH_EMAIL_VERIFICATION_RESEND_TOO_SOON',
+            )
+            .having(
+              (error) => error.headers['retry-after'],
+              'retry-after',
+              '60',
+            ),
+      ),
+    );
+  });
+
   test('reissues access token and retries authenticated requests', () async {
     final authStore = AuthStore();
     authStore.updateAccessToken('expired-token');

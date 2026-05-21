@@ -44,6 +44,15 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<EmailVerificationResendResult> resendVerificationEmail() async {
+    return EmailVerificationResendResult(
+      email: 'student01@example.com',
+      emailVerified: false,
+      nextRetryAt: DateTime.utc(2026, 5, 21, 8, 30),
+    );
+  }
+
+  @override
   Future<void> reissue() async {}
 
   @override

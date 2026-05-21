@@ -49,6 +49,7 @@ void main() {
 
     expect(find.text('이메일 확인이 필요해요'), findsOneWidget);
     expect(find.text('인증 완료하기'), findsOneWidget);
+    expect(find.text('인증 메일 다시 보내기'), findsNothing);
   });
 
   testWidgets('login flow reaches learning home', (tester) async {
@@ -59,6 +60,85 @@ void main() {
     expect(find.text('student01님, 오늘은 한 가지 위치만 찾으면 돼요.'), findsOneWidget);
     expect(find.text('시작 위치 고르기'), findsOneWidget);
     expect(find.text('저장된 기록 보기'), findsOneWidget);
+  });
+
+  testWidgets('authenticated unverified user can resend verification email', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_emailVerificationRequiredApp());
+
+    await _login(tester);
+    await tester.tap(find.text('이메일 인증하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('인증 메일 다시 보내기'), findsOneWidget);
+    await tester.tap(find.text('인증 메일 다시 보내기'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('student01@example.com로 인증 메일을 다시 보냈어요.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('다시 보내기까지'), findsOneWidget);
+    final resendButton = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, '인증 메일 다시 보내기'),
+    );
+    expect(resendButton.onPressed, isNull);
+  });
+
+  testWidgets('login failure shows credential-specific feedback', (tester) async {
+    await tester.pumpWidget(_loginFailureApp());
+
+    await tester.tap(find.text('이미 기록이 있어요'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Login ID'),
+      'student01',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'wrong-password',
+    );
+    await tester.tap(find.text('기록 불러오기').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('아이디나 비밀번호가 맞지 않아요. 다시 확인해 주세요.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('signup failure shows signup-specific feedback', (tester) async {
+    await tester.pumpWidget(_signupFailureApp());
+
+    await tester.tap(find.text('시작 위치 찾기'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Login ID'),
+      'student01',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Email'),
+      'student01@example.com',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'password123',
+    );
+    await tester.enterText(find.widgetWithText(TextField, 'Nickname'), '나루');
+    await tester.scrollUntilVisible(
+      find.text('내 기록 만들기'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('내 기록 만들기'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 300));
+    await tester.pumpAndSettle();
+    expect(find.text('회원가입 정보를 다시 확인해 주세요.'), findsOneWidget);
   });
 
   testWidgets('student can complete the mock diagnostic and recovery loop', (
@@ -225,7 +305,7 @@ void main() {
   );
 
   testWidgets(
-    'verification link failure uses dedicated recovery UX',
+    'verification link failure without session shows login guidance only',
     (tester) async {
       await tester.pumpWidget(
         NarooApp(
@@ -243,8 +323,26 @@ void main() {
 
       expect(find.text('인증 링크를 다시 확인해 주세요'), findsOneWidget);
       expect(find.text('로그인으로 돌아가기'), findsOneWidget);
+      expect(find.text('인증 메일 다시 보내기'), findsNothing);
       expect(find.text('인증 코드 직접 입력'), findsOneWidget);
       expect(find.text('인증 코드'), findsNothing);
+      expect(
+        find.text('인증 링크가 만료됐거나 이미 사용됐어요. 메일에서 최신 링크를 다시 열어 주세요.'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'verification link failure with session shows resend action',
+    (tester) async {
+      await tester.pumpWidget(_authenticatedVerificationFailureApp());
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('인증 링크를 다시 확인해 주세요'), findsOneWidget);
+      expect(find.text('인증 메일 다시 보내기'), findsOneWidget);
+      expect(find.text('로그인으로 돌아가기'), findsNothing);
     },
   );
 }
@@ -280,6 +378,51 @@ Widget _verificationLinkApp() {
     initialVerificationToken: 'email-token',
     dependencies: NarooDependencies(
       authRepository: _VerificationLinkAuthRepository(),
+      learningRepository: MockLearningRepository(),
+      diagnosticRepository: MockDiagnosticRepository(),
+      recoveryRepository: MockRecoveryRepository(),
+    ),
+  );
+}
+
+Widget _emailVerificationRequiredApp() {
+  return NarooApp(
+    dependencies: NarooDependencies(
+      authRepository: _ResendVerificationAuthRepository(),
+      learningRepository: _EmailVerificationRequiredLearningRepository(),
+      diagnosticRepository: MockDiagnosticRepository(),
+      recoveryRepository: MockRecoveryRepository(),
+    ),
+  );
+}
+
+Widget _loginFailureApp() {
+  return NarooApp(
+    dependencies: NarooDependencies(
+      authRepository: _LoginFailureAuthRepository(),
+      learningRepository: MockLearningRepository(),
+      diagnosticRepository: MockDiagnosticRepository(),
+      recoveryRepository: MockRecoveryRepository(),
+    ),
+  );
+}
+
+Widget _signupFailureApp() {
+  return NarooApp(
+    dependencies: NarooDependencies(
+      authRepository: _SignupFailureAuthRepository(),
+      learningRepository: MockLearningRepository(),
+      diagnosticRepository: MockDiagnosticRepository(),
+      recoveryRepository: MockRecoveryRepository(),
+    ),
+  );
+}
+
+Widget _authenticatedVerificationFailureApp() {
+  return NarooApp(
+    initialVerificationToken: 'bad-token',
+    dependencies: NarooDependencies(
+      authRepository: _AuthenticatedVerificationFailureAuthRepository(),
       learningRepository: MockLearningRepository(),
       diagnosticRepository: MockDiagnosticRepository(),
       recoveryRepository: MockRecoveryRepository(),
@@ -429,6 +572,106 @@ class _VerificationFailureAuthRepository extends MockAuthRepository {
     throw const api_types.ApiError(
       status: 401,
       errorCode: 'AUTH_INVALID_EMAIL_VERIFICATION_TOKEN',
+    );
+  }
+}
+
+class _ResendVerificationAuthRepository extends MockAuthRepository {
+  @override
+  Future<AuthProfile> login({
+    required String loginId,
+    required String password,
+  }) async {
+    return const AuthProfile(
+      nickname: 'student01',
+      email: 'student01@example.com',
+      emailVerified: false,
+    );
+  }
+
+  @override
+  Future<EmailVerificationResendResult> resendVerificationEmail() async {
+    return EmailVerificationResendResult(
+      email: 'student01@example.com',
+      emailVerified: false,
+      nextRetryAt: DateTime.now().toUtc().add(const Duration(seconds: 60)),
+    );
+  }
+}
+
+class _LoginFailureAuthRepository extends MockAuthRepository {
+  @override
+  Future<AuthProfile> login({
+    required String loginId,
+    required String password,
+  }) async {
+    throw const api_types.ApiError(
+      status: 401,
+      errorCode: 'AUTH_UNAUTHORIZED',
+    );
+  }
+}
+
+class _SignupFailureAuthRepository extends MockAuthRepository {
+  @override
+  Future<AuthProfile> signUp({
+    required String loginId,
+    required String email,
+    required String password,
+    required String nickname,
+    required String mathStatus,
+  }) async {
+    throw const api_types.ApiError(
+      status: 400,
+      errorCode: 'GLOBAL_VALIDATION_ERROR',
+    );
+  }
+}
+
+class _AuthenticatedVerificationFailureAuthRepository
+    extends MockAuthRepository {
+  @override
+  Future<AuthProfile> verifyEmail({
+    required String token,
+    required String nickname,
+    required String email,
+  }) async {
+    throw const api_types.ApiError(
+      status: 401,
+      errorCode: 'AUTH_INVALID_EMAIL_VERIFICATION_TOKEN',
+    );
+  }
+
+  @override
+  Future<void> reissue() async {}
+
+  @override
+  Future<AuthProfile> me() async {
+    return const AuthProfile(
+      nickname: 'student01',
+      email: 'student01@example.com',
+      emailVerified: false,
+    );
+  }
+
+  @override
+  Future<EmailVerificationResendResult> resendVerificationEmail() async {
+    return EmailVerificationResendResult(
+      email: 'student01@example.com',
+      emailVerified: false,
+      nextRetryAt: DateTime.now().toUtc().add(const Duration(seconds: 60)),
+    );
+  }
+}
+
+class _EmailVerificationRequiredLearningRepository
+    extends MockLearningRepository {
+  @override
+  Future<LearningHome> getLearningHome() async {
+    return const LearningHome(
+      nickname: 'student01',
+      emailVerified: false,
+      nextAction: LearningNextAction.emailVerificationRequired,
     );
   }
 }

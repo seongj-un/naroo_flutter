@@ -71,6 +71,38 @@ class AuthApiRepository implements AuthRepository {
   }
 
   @override
+  Future<EmailVerificationResendResult> resendVerificationEmail() {
+    return apiClient.post(
+      '/api/auth/email/resend',
+      decode: (data) {
+        final object = _requireObject(data);
+        final email = object['email'];
+        final emailVerified = object['emailVerified'];
+        final nextRetryAt = object['nextRetryAt'];
+        if (email is! String || nextRetryAt is! String) {
+          throw const ApiError(
+            status: 200,
+            errorCode: 'GLOBAL_BAD_RESPONSE',
+          );
+        }
+        final parsedNextRetryAt = DateTime.tryParse(nextRetryAt);
+        if (parsedNextRetryAt == null) {
+          throw const ApiError(
+            status: 200,
+            errorCode: 'GLOBAL_BAD_RESPONSE',
+          );
+        }
+
+        return EmailVerificationResendResult(
+          email: email,
+          emailVerified: emailVerified == true,
+          nextRetryAt: parsedNextRetryAt,
+        );
+      },
+    );
+  }
+
+  @override
   Future<void> reissue() async {
     final accessToken = await apiClient.post(
       '/api/auth/reissue',

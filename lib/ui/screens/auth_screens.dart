@@ -209,9 +209,14 @@ class EmailVerificationScreen extends StatefulWidget {
     required this.email,
     required this.isLoading,
     required this.isLinkFlow,
+    required this.showLinkFailureState,
+    required this.showResendAction,
+    required this.isResendCoolingDown,
+    required this.resendCooldownMessage,
     required this.errorMessage,
     required this.statusMessage,
     required this.onVerify,
+    required this.onResend,
     required this.onUseCodeInstead,
     required this.onBackToLogin,
     required this.onLater,
@@ -220,9 +225,14 @@ class EmailVerificationScreen extends StatefulWidget {
   final String email;
   final bool isLoading;
   final bool isLinkFlow;
+  final bool showLinkFailureState;
+  final bool showResendAction;
+  final bool isResendCoolingDown;
+  final String? resendCooldownMessage;
   final String? errorMessage;
   final String? statusMessage;
   final Future<void> Function(String token) onVerify;
+  final Future<void> Function() onResend;
   final VoidCallback onUseCodeInstead;
   final VoidCallback onBackToLogin;
   final VoidCallback onLater;
@@ -246,7 +256,18 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   Widget build(BuildContext context) {
     final email = widget.email.isEmpty ? '가입한 이메일' : widget.email;
     final showLinkFailureState =
-        widget.isLinkFlow && widget.errorMessage != null && !widget.isLoading;
+        widget.showLinkFailureState ||
+        (widget.isLinkFlow && widget.errorMessage != null && !widget.isLoading);
+    final showStatusText =
+        !showLinkFailureState &&
+        (widget.isLoading ||
+            widget.errorMessage != null ||
+            widget.statusMessage != null ||
+            _message != null);
+    final resendButtonLabel = widget.isResendCoolingDown
+        ? '인증 메일 다시 보내기'
+        : '인증 메일 다시 보내기';
+    final resendHelpText = widget.resendCooldownMessage;
 
     return NarooPage(
       child: ListView(
@@ -272,10 +293,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               textInputAction: TextInputAction.done,
             ),
           ],
-          if (widget.isLoading ||
-              widget.errorMessage != null ||
-              widget.statusMessage != null ||
-              _message != null) ...[
+          if (showStatusText) ...[
             const SizedBox(height: 8),
             Text(
               widget.isLoading
@@ -284,18 +302,51 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
+          if (showLinkFailureState && widget.errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              widget.errorMessage!,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: widget.isLoading
                 ? null
-                : showLinkFailureState
+                : showLinkFailureState && !widget.showResendAction
                 ? widget.onBackToLogin
+                : showLinkFailureState && widget.showResendAction
+                ? (widget.isResendCoolingDown ? null : widget.onResend)
                 : () async {
                     setState(() => _message = '인증을 확인하는 중...');
                     await widget.onVerify(_tokenController.text.trim());
                   },
-            child: Text(showLinkFailureState ? '로그인으로 돌아가기' : '인증 완료하기'),
+            child: Text(
+              showLinkFailureState
+                  ? widget.showResendAction
+                        ? resendButtonLabel
+                        : '로그인으로 돌아가기'
+                  : '인증 완료하기',
+            ),
           ),
+          if (widget.showResendAction && !showLinkFailureState) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: widget.isLoading || widget.isResendCoolingDown
+                  ? null
+                  : widget.onResend,
+              child: const Text('인증 메일 다시 보내기'),
+            ),
+          ],
+          if (widget.showResendAction &&
+              resendHelpText != null &&
+              resendHelpText.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              resendHelpText,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
           const SizedBox(height: 8),
           TextButton(
             onPressed: showLinkFailureState ? widget.onUseCodeInstead : widget.onLater,

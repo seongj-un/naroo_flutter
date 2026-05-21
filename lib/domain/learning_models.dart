@@ -10,6 +10,18 @@ class AuthProfile {
   final bool emailVerified;
 }
 
+class EmailVerificationResendResult {
+  const EmailVerificationResendResult({
+    required this.email,
+    required this.emailVerified,
+    required this.nextRetryAt,
+  });
+
+  final String email;
+  final bool emailVerified;
+  final DateTime nextRetryAt;
+}
+
 class MathAreaOption {
   const MathAreaOption({
     required this.code,

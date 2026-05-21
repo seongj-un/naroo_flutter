@@ -1,8 +1,13 @@
 class ApiError implements Exception {
-  const ApiError({required this.status, required this.errorCode});
+  const ApiError({
+    required this.status,
+    required this.errorCode,
+    this.headers = const {},
+  });
 
   final int status;
   final String errorCode;
+  final Map<String, String> headers;
 
   @override
   String toString() => 'ApiError(status: $status, errorCode: $errorCode)';
