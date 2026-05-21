@@ -14,10 +14,38 @@ import 'package:naroo_flutter/data/learning_api_repository.dart';
 import 'package:naroo_flutter/data/recovery_api_repository.dart';
 import 'package:naroo_flutter/domain/diagnostic_models.dart';
 import 'package:naroo_flutter/domain/learning_models.dart';
+import 'package:naroo_flutter/main.dart' as app;
 
 void main() {
   test('uses local backend as the default API base URL', () {
     expect(ApiClientConfig().baseUrl, 'http://localhost:8080');
+  });
+
+  test('extracts verification token from verify-email route', () {
+    expect(
+      app.initialVerificationTokenFromUri(
+        Uri.parse('https://narooapp.com/verify-email?token=email-token'),
+      ),
+      'email-token',
+    );
+    expect(
+      app.initialVerificationTokenFromUri(
+        Uri.parse('https://narooapp.com/verify-email/?token=email-token'),
+      ),
+      'email-token',
+    );
+    expect(
+      app.initialVerificationTokenFromUri(
+        Uri.parse('https://narooapp.com/foo/verify-email?token=email-token'),
+      ),
+      'email-token',
+    );
+    expect(
+      app.initialVerificationTokenFromUri(
+        Uri.parse('https://narooapp.com/result?token=email-token'),
+      ),
+      isNull,
+    );
   });
 
   test('rejects insecure API base URL for release builds', () {
@@ -152,8 +180,8 @@ void main() {
         }),
       );
 
-      await client.get(Uri.parse('https://api.naroo.app/login'));
-      await client.post(Uri.parse('https://api.naroo.app/api/auth/reissue'));
+      await client.get(Uri.parse('https://api.narooapp.com/login'));
+      await client.post(Uri.parse('https://api.narooapp.com/api/auth/reissue'));
 
       expect(seenCookies, [isNull, 'refresh_token=refresh-token']);
     },

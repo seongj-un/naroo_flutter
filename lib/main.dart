@@ -7,25 +7,39 @@ import 'naroo_app.dart';
 void main() {
   final startupError = NarooEnvironment.validateApiBaseUrl(
     isReleaseMode: kReleaseMode,
+    baseUri: Uri.base,
   );
   runApp(
     NarooApp(
       startupError: startupError,
-      initialVerificationToken: _initialVerificationToken(),
+      initialVerificationToken: initialVerificationTokenFromUri(Uri.base),
     ),
   );
 }
 
-String? _initialVerificationToken() {
-  final token = Uri.base.queryParameters['token']?.trim();
+String? initialVerificationTokenFromUri(Uri uri) {
+  final token = uri.queryParameters['token']?.trim();
   if (token == null || token.isEmpty) {
     return null;
   }
 
-  final path = Uri.base.path.toLowerCase();
-  if (path.isEmpty || path == '/' || path == '/verify-email') {
+  final normalizedPath = _normalizeVerificationPath(uri.path);
+  if (normalizedPath == '/' || normalizedPath.endsWith('/verify-email')) {
     return token;
   }
 
   return null;
+}
+
+String _normalizeVerificationPath(String path) {
+  final normalized = path.trim().toLowerCase();
+  if (normalized.isEmpty) {
+    return '/';
+  }
+  if (normalized == '/') {
+    return normalized;
+  }
+  return normalized.endsWith('/')
+      ? normalized.substring(0, normalized.length - 1)
+      : normalized;
 }

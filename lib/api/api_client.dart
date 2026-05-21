@@ -7,12 +7,8 @@ import '../config/naroo_environment.dart';
 import 'api_types.dart';
 
 class ApiClientConfig {
-  const ApiClientConfig({this.baseUrl = defaultBaseUrl});
-
-  static const defaultBaseUrl = String.fromEnvironment(
-    'NAROO_API_BASE_URL',
-    defaultValue: NarooEnvironment.apiBaseUrl,
-  );
+  ApiClientConfig({String? baseUrl})
+    : baseUrl = baseUrl ?? NarooEnvironment.resolveApiBaseUrl();
 
   final String baseUrl;
 }
@@ -20,9 +16,10 @@ class ApiClientConfig {
 class ApiClient {
   ApiClient({
     required this.authStore,
-    this.config = const ApiClientConfig(),
+    ApiClientConfig? config,
     http.Client? httpClient,
-  }) : _httpClient = httpClient ?? http.Client();
+  }) : config = config ?? ApiClientConfig(),
+       _httpClient = httpClient ?? http.Client();
 
   final ApiClientConfig config;
   final AuthStore authStore;

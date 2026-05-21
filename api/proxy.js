@@ -24,7 +24,7 @@ function buildTargetUrl(req) {
     : typeof proxiedPath === "string"
       ? proxiedPath
       : "";
-  const search = new URL(req.url, "https://narooflutter.vercel.app").searchParams;
+  const search = new URL(req.url, "https://narooapp.com").searchParams;
   search.delete("path");
   const query = search.toString();
   return `${backendBaseUrl}/api/${path}${query ? `?${query}` : ""}`;

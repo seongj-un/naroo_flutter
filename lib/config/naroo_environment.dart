@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
+
 class NarooEnvironment {
   const NarooEnvironment._();
 
-  static const apiBaseUrl = String.fromEnvironment(
+  static const configuredApiBaseUrl = String.fromEnvironment(
     'NAROO_API_BASE_URL',
-    defaultValue: 'http://localhost:8080',
+    defaultValue: '',
   );
 
   static const buildProfile = String.fromEnvironment(
@@ -20,8 +22,26 @@ class NarooEnvironment {
     return normalized == 'prod' || normalized == 'production';
   }
 
-  static String? validateApiBaseUrl({required bool isReleaseMode}) {
-    final uri = Uri.tryParse(apiBaseUrl);
+  static String resolveApiBaseUrl({Uri? baseUri}) {
+    if (configuredApiBaseUrl.isNotEmpty) {
+      return configuredApiBaseUrl;
+    }
+
+    if (kIsWeb) {
+      final origin = (baseUri ?? Uri.base).origin;
+      if (origin.isNotEmpty && origin != 'null') {
+        return origin;
+      }
+    }
+
+    return 'http://localhost:8080';
+  }
+
+  static String? validateApiBaseUrl({
+    required bool isReleaseMode,
+    Uri? baseUri,
+  }) {
+    final uri = Uri.tryParse(resolveApiBaseUrl(baseUri: baseUri));
     if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
       return 'API 주소가 올바르지 않아요. NAROO_API_BASE_URL을 https://... 형식으로 설정해 주세요.';
     }
