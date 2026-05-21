@@ -2,6 +2,7 @@ class AuthUser {
   const AuthUser({
     required this.id,
     required this.loginId,
+    required this.email,
     required this.nickname,
     required this.role,
     required this.emailVerified,
@@ -9,6 +10,7 @@ class AuthUser {
 
   final String id;
   final String loginId;
+  final String email;
   final String nickname;
   final String role;
   final bool emailVerified;

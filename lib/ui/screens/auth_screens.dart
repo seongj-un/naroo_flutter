@@ -208,17 +208,23 @@ class EmailVerificationScreen extends StatefulWidget {
     super.key,
     required this.email,
     required this.isLoading,
+    required this.isLinkFlow,
     required this.errorMessage,
     required this.statusMessage,
     required this.onVerify,
+    required this.onUseCodeInstead,
+    required this.onBackToLogin,
     required this.onLater,
   });
 
   final String email;
   final bool isLoading;
+  final bool isLinkFlow;
   final String? errorMessage;
   final String? statusMessage;
   final Future<void> Function(String token) onVerify;
+  final VoidCallback onUseCodeInstead;
+  final VoidCallback onBackToLogin;
   final VoidCallback onLater;
 
   @override
@@ -239,6 +245,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     final email = widget.email.isEmpty ? '가입한 이메일' : widget.email;
+    final showLinkFailureState =
+        widget.isLinkFlow && widget.errorMessage != null && !widget.isLoading;
 
     return NarooPage(
       child: ListView(
@@ -246,20 +254,24 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           const BrandHeader(),
           const SizedBox(height: 48),
           Text(
-            '이메일 확인이 필요해요',
+            showLinkFailureState ? '인증 링크를 다시 확인해 주세요' : '이메일 확인이 필요해요',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: 12),
           Text(
-            '$email 기록을 안전하게 저장하려면 이메일 인증을 먼저 완료해야 해요.',
+            showLinkFailureState
+                ? '링크가 만료됐거나 이미 사용됐을 수 있어요. 메일함에서 가장 최근에 받은 링크를 다시 열거나, 인증 코드를 직접 입력해 주세요.'
+                : '$email 기록을 안전하게 저장하려면 이메일 인증을 먼저 완료해야 해요.',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
-          const SizedBox(height: 24),
-          NarooTextField(
-            controller: _tokenController,
-            label: '인증 코드',
-            textInputAction: TextInputAction.done,
-          ),
+          if (!showLinkFailureState) ...[
+            const SizedBox(height: 24),
+            NarooTextField(
+              controller: _tokenController,
+              label: '인증 코드',
+              textInputAction: TextInputAction.done,
+            ),
+          ],
           if (widget.isLoading ||
               widget.errorMessage != null ||
               widget.statusMessage != null ||
@@ -276,14 +288,19 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           ElevatedButton(
             onPressed: widget.isLoading
                 ? null
+                : showLinkFailureState
+                ? widget.onBackToLogin
                 : () async {
                     setState(() => _message = '인증을 확인하는 중...');
                     await widget.onVerify(_tokenController.text.trim());
                   },
-            child: const Text('인증 완료하기'),
+            child: Text(showLinkFailureState ? '로그인으로 돌아가기' : '인증 완료하기'),
           ),
           const SizedBox(height: 8),
-          TextButton(onPressed: widget.onLater, child: const Text('나중에 다시 시도')),
+          TextButton(
+            onPressed: showLinkFailureState ? widget.onUseCodeInstead : widget.onLater,
+            child: Text(showLinkFailureState ? '인증 코드 직접 입력' : '나중에 다시 시도'),
+          ),
         ],
       ),
     );

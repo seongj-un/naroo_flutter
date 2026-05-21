@@ -111,6 +111,7 @@ class AuthApiRepository implements AuthRepository {
     final object = _requireObject(data);
     final id = object['id'];
     final loginId = object['loginId'];
+    final email = object['email'];
     final nickname = object['nickname'];
     final role = object['role'];
     final emailVerified = object['emailVerified'];
@@ -118,6 +119,7 @@ class AuthApiRepository implements AuthRepository {
     return AuthUser(
       id: id?.toString() ?? '',
       loginId: loginId is String ? loginId : '',
+      email: email is String ? email : '',
       nickname: nickname is String ? nickname : '나루',
       role: role is String ? role : 'STUDENT',
       emailVerified: emailVerified == true,
@@ -140,7 +142,7 @@ class AuthApiRepository implements AuthRepository {
   AuthProfile _profileFromUser(AuthUser user) {
     return AuthProfile(
       nickname: user.nickname,
-      email: '',
+      email: user.email,
       emailVerified: user.emailVerified,
     );
   }

@@ -56,6 +56,7 @@ class NarooFlowController extends ChangeNotifier {
   int inProgressMissionCount = 0;
   bool isAuthBusy = false;
   bool isFlowBusy = false;
+  bool isVerificationLinkFlow = false;
   String? authErrorMessage;
   String? authStatusMessage;
   String? flowErrorMessage;
@@ -171,6 +172,7 @@ class NarooFlowController extends ChangeNotifier {
 
   void openAuth(AuthMode mode) {
     authMode = mode;
+    isVerificationLinkFlow = false;
     authStatusMessage = null;
     authErrorMessage = null;
     stage = NarooStage.auth;
@@ -179,12 +181,14 @@ class NarooFlowController extends ChangeNotifier {
 
   void updateAuthMode(AuthMode mode) {
     authMode = mode;
+    isVerificationLinkFlow = false;
     authStatusMessage = null;
     authErrorMessage = null;
     notifyListeners();
   }
 
   void goToEntry() {
+    isVerificationLinkFlow = false;
     authStatusMessage = null;
     authErrorMessage = null;
     stage = NarooStage.entry;
@@ -209,7 +213,8 @@ class NarooFlowController extends ChangeNotifier {
       this.nickname = profile.nickname;
       this.email = profile.email;
       emailVerified = profile.emailVerified;
-      authStatusMessage = null;
+      isVerificationLinkFlow = false;
+      authStatusMessage = '${profile.email}로 인증 링크를 보냈어요. 메일의 링크를 열거나 인증 코드를 붙여 넣어 주세요.';
       stage = NarooStage.emailVerification;
     });
   }
@@ -226,6 +231,7 @@ class NarooFlowController extends ChangeNotifier {
       nickname = profile.nickname;
       email = profile.email;
       emailVerified = profile.emailVerified;
+      isVerificationLinkFlow = false;
       authStatusMessage = null;
       await _loadLearningHome();
     });
@@ -241,12 +247,14 @@ class NarooFlowController extends ChangeNotifier {
       nickname = profile.nickname;
       email = profile.email;
       emailVerified = profile.emailVerified;
+      isVerificationLinkFlow = false;
       authStatusMessage = null;
       await _loadLearningHome();
     });
   }
 
   Future<void> handleEmailVerificationLink(String token) {
+    isVerificationLinkFlow = true;
     stage = NarooStage.emailVerification;
     authStatusMessage = '인증 링크를 확인하는 중...';
     notifyListeners();
@@ -260,6 +268,7 @@ class NarooFlowController extends ChangeNotifier {
       nickname = profile.nickname;
       email = profile.email;
       emailVerified = profile.emailVerified;
+      isVerificationLinkFlow = false;
       authMode = AuthMode.login;
       authStatusMessage = '이메일 인증이 완료됐어요. 로그인해 주세요.';
       stage = NarooStage.auth;
@@ -267,11 +276,21 @@ class NarooFlowController extends ChangeNotifier {
   }
 
   void skipVerificationForNow() {
+    isVerificationLinkFlow = false;
     stage = NarooStage.home;
     notifyListeners();
   }
 
   void goToEmailVerification() {
+    isVerificationLinkFlow = false;
+    stage = NarooStage.emailVerification;
+    notifyListeners();
+  }
+
+  void switchVerificationLinkFailureToCodeEntry() {
+    isVerificationLinkFlow = false;
+    authErrorMessage = null;
+    authStatusMessage = '메일에 적힌 인증 코드를 붙여 넣어 주세요.';
     stage = NarooStage.emailVerification;
     notifyListeners();
   }
@@ -553,6 +572,13 @@ class NarooFlowController extends ChangeNotifier {
     if (error is ApiError) {
       return switch (error.errorCode) {
         'AUTH_INVALID_CREDENTIALS' => '아이디나 비밀번호가 맞지 않아요.',
+        'AUTH_UNAUTHORIZED' => '로그인에 실패했어요. 아이디와 비밀번호를 다시 확인해 주세요.',
+        'AUTH_EMAIL_ALREADY_EXISTS' => '이미 가입된 이메일이에요. 바로 로그인하거나 다른 이메일을 사용해 주세요.',
+        'AUTH_LOGIN_ID_ALREADY_EXISTS' => '이미 사용 중인 아이디예요. 다른 아이디로 다시 시도해 주세요.',
+        'AUTH_INVALID_EMAIL_VERIFICATION_TOKEN' =>
+          isVerificationLinkFlow
+              ? '인증 링크가 만료됐거나 이미 사용됐어요. 메일에서 최신 링크를 다시 열어 주세요.'
+              : '인증 코드가 올바르지 않아요. 메일의 최신 코드를 다시 확인해 주세요.',
         'AUTH_ACCESS_TOKEN_MISSING' ||
         'GLOBAL_UNAUTHORIZED' => '로그인이 만료됐어요. 다시 로그인해 주세요.',
         'GLOBAL_VALIDATION_ERROR' => '입력한 정보를 다시 확인해 주세요.',

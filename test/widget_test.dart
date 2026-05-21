@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:naroo_flutter/api/api_types.dart' as api_types;
 import 'package:naroo_flutter/app/naroo_dependencies.dart';
 import 'package:naroo_flutter/data/mock_repositories.dart';
 import 'package:naroo_flutter/domain/learning_models.dart';
@@ -222,6 +223,30 @@ void main() {
       expect(find.text('이메일 인증이 완료됐어요. 로그인해 주세요.'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'verification link failure uses dedicated recovery UX',
+    (tester) async {
+      await tester.pumpWidget(
+        NarooApp(
+          initialVerificationToken: 'bad-token',
+          dependencies: NarooDependencies(
+            authRepository: _VerificationFailureAuthRepository(),
+            learningRepository: MockLearningRepository(),
+            diagnosticRepository: MockDiagnosticRepository(),
+            recoveryRepository: MockRecoveryRepository(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('인증 링크를 다시 확인해 주세요'), findsOneWidget);
+      expect(find.text('로그인으로 돌아가기'), findsOneWidget);
+      expect(find.text('인증 코드 직접 입력'), findsOneWidget);
+      expect(find.text('인증 코드'), findsNothing);
+    },
+  );
 }
 
 Widget _mockApp() {
@@ -390,6 +415,20 @@ class _VerificationLinkAuthRepository extends MockAuthRepository {
       nickname: 'QA Live',
       email: 'qa@example.com',
       emailVerified: true,
+    );
+  }
+}
+
+class _VerificationFailureAuthRepository extends MockAuthRepository {
+  @override
+  Future<AuthProfile> verifyEmail({
+    required String token,
+    required String nickname,
+    required String email,
+  }) async {
+    throw const api_types.ApiError(
+      status: 401,
+      errorCode: 'AUTH_INVALID_EMAIL_VERIFICATION_TOKEN',
     );
   }
 }

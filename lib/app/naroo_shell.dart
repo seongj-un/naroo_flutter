@@ -70,9 +70,12 @@ class _NarooShellState extends State<NarooShell> {
           NarooStage.emailVerification => EmailVerificationScreen(
             email: _controller.email,
             isLoading: _controller.isAuthBusy,
+            isLinkFlow: _controller.isVerificationLinkFlow,
             errorMessage: _controller.authErrorMessage,
             statusMessage: _controller.authStatusMessage,
             onVerify: _controller.completeVerification,
+            onUseCodeInstead: _controller.switchVerificationLinkFailureToCodeEntry,
+            onBackToLogin: () => _controller.openAuth(AuthMode.login),
             onLater: _controller.skipVerificationForNow,
           ),
           NarooStage.home => LearningHomeScreen(

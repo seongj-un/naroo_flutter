@@ -94,6 +94,7 @@ void main() {
               "user": {
                 "id": "user-id",
                 "loginId": "student01",
+                "email": "student01@example.com",
                 "emailVerified": true,
                 "nickname": "나루",
                 "role": "STUDENT"
@@ -117,8 +118,55 @@ void main() {
     );
 
     expect(profile.nickname, '나루');
+    expect(profile.email, 'student01@example.com');
     expect(profile.emailVerified, isTrue);
     expect(authStore.accessToken, 'jwt-token');
+  });
+
+  test('sign up sends expected payload and keeps response email', () async {
+    late Map<String, dynamic> seenBody;
+    final repository = AuthApiRepository(
+      apiClient: ApiClient(
+        authStore: AuthStore(),
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/api/auth/sign-up');
+          seenBody = jsonDecode(request.body) as Map<String, dynamic>;
+          return _jsonResponse('''
+          {
+            "success": true,
+            "data": {
+              "id": "user-id",
+              "loginId": "student01",
+              "email": "student@example.com",
+              "emailVerified": false,
+              "nickname": "나루",
+              "mathStatus": "UNKNOWN",
+              "createdAt": "2026-04-30T00:00:00Z"
+            }
+          }
+          ''');
+        }),
+      ),
+      authStore: AuthStore(),
+    );
+
+    final profile = await repository.signUp(
+      loginId: 'student01',
+      email: 'student@example.com',
+      password: 'password1234',
+      nickname: '나루',
+      mathStatus: '아직 모르겠어요',
+    );
+
+    expect(seenBody, {
+      'loginId': 'student01',
+      'email': 'student@example.com',
+      'password': 'password1234',
+      'nickname': '나루',
+      'mathStatus': 'UNKNOWN',
+    });
+    expect(profile.email, 'student@example.com');
+    expect(profile.emailVerified, isFalse);
   });
 
   test('reissues access token and retries authenticated requests', () async {
