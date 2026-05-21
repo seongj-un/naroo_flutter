@@ -81,6 +81,7 @@ class _NarooShellState extends State<NarooShell> {
             title: _controller.homeActionTitle,
             body: _controller.homeActionBody,
             buttonLabel: _controller.homeActionButtonLabel,
+            showSavedProgressShortcut: _controller.showSavedProgressShortcut,
             onPrimaryAction: () {
               _controller.openHomePrimaryAction();
             },

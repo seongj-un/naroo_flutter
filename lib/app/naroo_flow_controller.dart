@@ -136,6 +136,10 @@ class NarooFlowController extends ChangeNotifier {
     };
   }
 
+  bool get showSavedProgressShortcut {
+    return learningNextAction != LearningNextAction.recoverySeriesCompleted;
+  }
+
   String get savedProgressNextAction {
     return switch (learningNextAction) {
       LearningNextAction.emailVerificationRequired => '이메일 인증 후 이어서 진행해 주세요.',

@@ -202,8 +202,8 @@ void main() {
 
       await _login(tester);
 
-      expect(find.text('저장된 기록 보기'), findsNWidgets(2));
-      await tester.tap(find.text('저장된 기록 보기').first);
+      expect(find.text('저장된 기록 보기'), findsOneWidget);
+      await tester.tap(find.text('저장된 기록 보기'));
       await tester.pumpAndSettle();
 
       expect(find.text('마지막 위치를 저장해뒀어요.'), findsOneWidget);
