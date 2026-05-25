@@ -124,7 +124,12 @@ Signup fields:
 
 Math status options:
 
-- `수업을 따라가고 있어요`
+- `수업을 따라가고 있어요`요청 시 403
+
+  즉 backend에 이 값을 추가해야 합니다:
+
+    - NAROO_CORS_ALLOWED_ORIGINS=https://naroo.app,https://web-naroo.vercel.app
+    - 또는 현재 설정 방식에 맞게 https://web-naroo.vercel.app 포함
 - `간신히 따라가고 있어요`
 - `거의 놓친 것 같아요`
 - `아직 모르겠어요`

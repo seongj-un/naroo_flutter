@@ -25,7 +25,7 @@ Build the Flutter web frontend for a deployed backend:
 
 ```bash
 flutter build web \
-  --dart-define=NAROO_API_BASE_URL=https://backend-production-688a6.up.railway.app
+  --dart-define=NAROO_API_BASE_URL=https://api.narooapp.com
 ```
 
 Default local services:
