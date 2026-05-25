@@ -11,10 +11,12 @@ class NarooShell extends StatefulWidget {
     super.key,
     required this.dependencies,
     this.initialVerificationToken,
+    this.restoreSessionOnStartup = false,
   });
 
   final NarooDependencies dependencies;
   final String? initialVerificationToken;
+  final bool restoreSessionOnStartup;
 
   @override
   State<NarooShell> createState() => _NarooShellState();
@@ -33,9 +35,17 @@ class _NarooShellState extends State<NarooShell> {
       recoveryRepository: widget.dependencies.recoveryRepository,
     );
     final initialVerificationToken = widget.initialVerificationToken;
-    if (initialVerificationToken != null && initialVerificationToken.isNotEmpty) {
+    if (initialVerificationToken != null &&
+        initialVerificationToken.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _controller.handleEmailVerificationLink(initialVerificationToken);
+      });
+      return;
+    }
+
+    if (widget.restoreSessionOnStartup) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _controller.restoreSessionIfPossible();
       });
     }
   }
@@ -79,7 +89,8 @@ class _NarooShellState extends State<NarooShell> {
             statusMessage: _controller.authStatusMessage,
             onVerify: _controller.completeVerification,
             onResend: _controller.resendVerificationEmail,
-            onUseCodeInstead: _controller.switchVerificationLinkFailureToCodeEntry,
+            onUseCodeInstead:
+                _controller.switchVerificationLinkFailureToCodeEntry,
             onBackToLogin: () => _controller.openAuth(AuthMode.login),
             onLater: _controller.skipVerificationForNow,
           ),
@@ -96,7 +107,7 @@ class _NarooShellState extends State<NarooShell> {
             onSavedProgress: _controller.goToSavedProgress,
           ),
           NarooStage.startingPoint => StartingPointScreen(
-            selectedMathAreaCode: null,
+            selectedMathAreaCode: _controller.selectedMathAreaCode,
             options: _controller.mathAreas,
             onBack: () {
               _controller.goHome();

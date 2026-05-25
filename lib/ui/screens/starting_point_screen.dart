@@ -25,6 +25,14 @@ class _StartingPointScreenState extends State<StartingPointScreen> {
   late String? _selected = widget.selectedMathAreaCode;
 
   @override
+  void didUpdateWidget(covariant StartingPointScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedMathAreaCode != oldWidget.selectedMathAreaCode) {
+      _selected = widget.selectedMathAreaCode;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return NarooPage(
       child: ListView(

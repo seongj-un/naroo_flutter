@@ -10,11 +10,13 @@ class NarooApp extends StatelessWidget {
     this.dependencies,
     this.startupError,
     this.initialVerificationToken,
+    this.restoreSessionOnStartup = false,
   });
 
   final NarooDependencies? dependencies;
   final String? startupError;
   final String? initialVerificationToken;
+  final bool restoreSessionOnStartup;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +28,7 @@ class NarooApp extends StatelessWidget {
           ? NarooShell(
               dependencies: dependencies ?? NarooDependencies.real(),
               initialVerificationToken: initialVerificationToken,
+              restoreSessionOnStartup: restoreSessionOnStartup,
             )
           : _StartupErrorScreen(message: startupError!),
     );

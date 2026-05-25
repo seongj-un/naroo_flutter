@@ -23,8 +23,23 @@ class _RecoveryMissionScreenState extends State<RecoveryMissionScreen> {
   final _answerController = TextEditingController();
   bool _hintVisible = false;
 
+  bool get _canSubmit => _answerController.text.trim().isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _answerController.addListener(_handleAnswerChanged);
+  }
+
+  void _handleAnswerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   void dispose() {
+    _answerController.removeListener(_handleAnswerChanged);
     _answerController.dispose();
     super.dispose();
   }
@@ -86,7 +101,9 @@ class _RecoveryMissionScreenState extends State<RecoveryMissionScreen> {
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () => widget.onSubmit(_answerController.text),
+            onPressed: _canSubmit
+                ? () => widget.onSubmit(_answerController.text.trim())
+                : null,
             child: const Text('미션 제출하기'),
           ),
         ],

@@ -6,17 +6,16 @@
 
 - Frontend: Flutter app
 - Web frontend: `flutter build web` 결과물 배포 가능
-- Backend source: 이 저장소에는 없음
+- Backend source: 현재 워크스페이스의 sibling repo `../backend`
 - Backend dependency: 별도 Spring Boot API 서버 필요
 - Infra dependency: MySQL, Redis
 
 주의:
 
 - 이 저장소는 Flutter 앱 저장소임
-- Spring Boot 백엔드 소스는 현재 저장소 안에 포함되어 있지 않음
-- 따라서 이 문서의 Backend 항목은 “이 Flutter 앱이 의존하는 별도 백엔드 서비스” 기준의 배포 입력값임
-- Backend 빌드/배포 명령은 이 저장소 루트에서 실행하는 명령이 아님
-- Backend 저장소가 따로 있다면 해당 저장소 기준으로 별도 배포 문서를 작성해야 함
+- 현재 상위 워크스페이스에는 Spring Boot 백엔드가 `../backend` 에 별도 Git 저장소로 존재함
+- 따라서 이 문서의 Backend 항목은 현재 워크스페이스의 `../backend` 기준 배포 입력값임
+- Backend 빌드/배포 명령은 이 저장소 루트가 아니라 `../backend` 에서 실행하는 명령임
 
 ## 1. 배포 대상
 
@@ -94,9 +93,9 @@ NAROO_API_BASE_URL=https://naroo-api.up.railway.app
 
 ## 4. Backend 환경변수
 
-이 항목은 현재 Flutter 저장소가 아니라, 별도 Spring Boot 백엔드 서비스 기준으로 필요한 값입니다.
+이 항목은 현재 워크스페이스의 `../backend` Spring Boot 서비스 기준으로 필요한 값입니다.
 
-`../naroo/src/main/resources/application.yaml` 기준 확인된 서버 설정:
+`../backend/src/main/resources/application.yaml` 기준 확인된 서버 설정:
 
 - `MYSQL_URL`
 - `MYSQL_USER`
@@ -108,6 +107,7 @@ NAROO_API_BASE_URL=https://naroo-api.up.railway.app
 - `NAROO_AUTH_REFRESH_COOKIE_SECURE`
 - `NAROO_JWT_ACCESS_TOKEN_TTL_MINUTES`
 - `NAROO_JWT_REFRESH_TOKEN_TTL_DAYS`
+- `NAROO_AUTH_REFRESH_COOKIE_SAME_SITE`
 
 추가로 확정이 필요한 값:
 
@@ -235,6 +235,12 @@ Build Command:
 Start Command:
 java -jar build/libs/naroo-*.jar
 ```
+
+로컬 QA 기준 이미 확인된 값:
+
+- `GET /actuator/health` 응답 가능
+- `NAROO_AUTH_REFRESH_COOKIE_SECURE=false` 로 로컬 HTTP cookie QA 가능
+- 로컬 이메일 인증은 로그 토큰 방식 사용 가능
 
 주의:
 
@@ -449,7 +455,7 @@ flutter build ipa --release \
 - 현재 코드베이스는 Supabase 직접 호출 구조가 아니라 Spring Boot API 호출 구조임
 - 따라서 `NAROO_API_BASE_URL`에는 Supabase URL이 아니라 Spring Boot API 서버 URL을 넣어야 함
 - 현재 저장소에는 Spring Boot 백엔드 소스가 없음
-- 로컬에서 확인된 별도 백엔드 저장소는 `../naroo`이며 원격은 `https://github.com/seongj-un/naroo.git`임
+- 로컬에서 확인된 별도 백엔드 저장소는 `../backend`이며 원격은 `https://github.com/seongj-un/naroo.git`임
 - 백엔드 관련 빌드/실행 명령은 별도 백엔드 저장소 기준으로만 유효함
 - 프론트만 배포해서는 동작하지 않고, 운영 MySQL/Redis를 포함한 백엔드 배포가 먼저 필요함
 - 배포 순서는 Backend → Flutter release build → Store/Web 배포 순서가 안정적임
@@ -461,7 +467,7 @@ flutter build ipa --release \
 - 이 Flutter 저장소에 DB 비밀번호나 JWT secret 같은 백엔드 secret을 넣지 않는 것을 권장함
 - Backend secret은 별도 백엔드 저장소 또는 백엔드 배포 플랫폼에서 관리하는 것이 안전함
 - 현재 GitHub 상태 확인 결과:
-  - `naroo_flutter` repo variables 없음
-  - `naroo_flutter` repo secrets 없음
-  - `naroo` backend repo workflows 없음
-  - `naroo` backend repo deploy config 파일 없음
+  - frontend repo variables 없음
+  - frontend repo secrets 없음
+  - backend repo workflows 없음
+  - backend repo deploy config 파일 없음

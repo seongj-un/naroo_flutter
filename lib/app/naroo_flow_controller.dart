@@ -50,6 +50,7 @@ class NarooFlowController extends ChangeNotifier {
   String nickname = '나루';
   String email = '';
   String? startingPoint;
+  String? selectedMathAreaCode;
   LearningNextAction learningNextAction = LearningNextAction.startDiagnostic;
   String? diagnosticSessionId;
   int currentQuestionIndex = 0;
@@ -244,6 +245,25 @@ class NarooFlowController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> restoreSessionIfPossible() async {
+    isFlowBusy = true;
+    flowErrorMessage = null;
+    notifyListeners();
+
+    try {
+      await authRepository.reissue();
+      await _loadLearningHome();
+    } catch (_) {
+      hasAuthenticatedSession = false;
+      emailVerified = false;
+      flowErrorMessage = null;
+      stage = NarooStage.entry;
+    } finally {
+      isFlowBusy = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> submitSignup({
     required String loginId,
     required String email,
@@ -267,7 +287,8 @@ class NarooFlowController extends ChangeNotifier {
       showVerificationLinkFailureState = false;
       verificationResendAvailableAt = null;
       _stopVerificationResendTimer();
-      authStatusMessage = '${profile.email}로 인증 링크를 보냈어요. 메일의 링크를 열거나 인증 코드를 붙여 넣어 주세요.';
+      authStatusMessage =
+          '${profile.email}로 인증 링크를 보냈어요. 메일의 링크를 열거나 인증 코드를 붙여 넣어 주세요.';
       stage = NarooStage.emailVerification;
     });
   }
@@ -342,8 +363,7 @@ class NarooFlowController extends ChangeNotifier {
         authErrorMessage = null;
         authStatusMessage = '이미 이메일 인증이 완료된 계정이에요. 학습 홈으로 이동할게요.';
         await _loadLearningHome();
-      } else if (error.errorCode ==
-          'AUTH_EMAIL_VERIFICATION_RESEND_TOO_SOON') {
+      } else if (error.errorCode == 'AUTH_EMAIL_VERIFICATION_RESEND_TOO_SOON') {
         _setVerificationResendCooldown(_retryAtFromError(error));
         authStatusMessage = null;
       } else {
@@ -422,6 +442,7 @@ class NarooFlowController extends ChangeNotifier {
   Future<void> startDiagnostic(MathAreaOption mathArea) {
     return _runFlowAction(() async {
       startingPoint = mathArea.name;
+      selectedMathAreaCode = mathArea.code;
       currentQuestionIndex = 0;
       diagnosticAnswers.clear();
       diagnosticResult = null;
@@ -597,6 +618,7 @@ class NarooFlowController extends ChangeNotifier {
     final latestDiagnostic = home.latestDiagnostic;
     if (latestDiagnostic != null) {
       startingPoint = _mathAreaLabel(latestDiagnostic.mathArea);
+      selectedMathAreaCode = latestDiagnostic.mathArea;
       diagnosticSessionId = latestDiagnostic.diagnosticSessionId;
       diagnosticResult = DiagnosticResult(
         diagnosticSessionId: latestDiagnostic.diagnosticSessionId,
@@ -611,6 +633,7 @@ class NarooFlowController extends ChangeNotifier {
         summary: latestDiagnostic.summary,
       );
     } else {
+      selectedMathAreaCode = null;
       diagnosticSessionId = null;
       diagnosticResult = null;
     }
@@ -638,6 +661,7 @@ class NarooFlowController extends ChangeNotifier {
       throw StateError('Diagnostic result is missing.');
     }
     diagnosticResult = await diagnosticRepository.getResult(sessionId);
+    selectedMathAreaCode = diagnosticResult!.mathArea;
     startingPoint = _mathAreaLabel(diagnosticResult!.mathArea);
   }
 
@@ -702,33 +726,28 @@ class NarooFlowController extends ChangeNotifier {
               '이미 가입된 이메일이에요. 바로 로그인하거나 다른 이메일을 사용해 주세요.',
             'AUTH_LOGIN_ID_ALREADY_EXISTS' =>
               '이미 사용 중인 아이디예요. 다른 아이디로 다시 시도해 주세요.',
-            'GLOBAL_VALIDATION_ERROR' =>
-              '회원가입 정보를 다시 확인해 주세요.',
+            'GLOBAL_VALIDATION_ERROR' => '회원가입 정보를 다시 확인해 주세요.',
             _ => '회원가입을 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
           };
         case AuthAction.login:
           return switch (error.errorCode) {
             'AUTH_INVALID_CREDENTIALS' ||
-            'AUTH_UNAUTHORIZED' =>
-              '아이디나 비밀번호가 맞지 않아요. 다시 확인해 주세요.',
-            'GLOBAL_VALIDATION_ERROR' =>
-              '로그인 정보를 다시 확인해 주세요.',
+            'AUTH_UNAUTHORIZED' => '아이디나 비밀번호가 맞지 않아요. 다시 확인해 주세요.',
+            'GLOBAL_VALIDATION_ERROR' => '로그인 정보를 다시 확인해 주세요.',
             _ => '로그인하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
           };
         case AuthAction.verifyCode:
           return switch (error.errorCode) {
             'AUTH_INVALID_EMAIL_VERIFICATION_TOKEN' =>
               '인증 코드가 올바르지 않아요. 메일의 최신 코드를 다시 확인해 주세요.',
-            'AUTH_EMAIL_ALREADY_VERIFIED' =>
-              '이미 이메일 인증이 완료된 계정이에요.',
+            'AUTH_EMAIL_ALREADY_VERIFIED' => '이미 이메일 인증이 완료된 계정이에요.',
             _ => '이메일 인증을 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
           };
         case AuthAction.verifyLink:
           return switch (error.errorCode) {
             'AUTH_INVALID_EMAIL_VERIFICATION_TOKEN' =>
               '인증 링크가 만료됐거나 이미 사용됐어요. 메일에서 최신 링크를 다시 열어 주세요.',
-            'AUTH_EMAIL_ALREADY_VERIFIED' =>
-              '이미 이메일 인증이 완료된 계정이에요. 로그인해 주세요.',
+            'AUTH_EMAIL_ALREADY_VERIFIED' => '이미 이메일 인증이 완료된 계정이에요. 로그인해 주세요.',
             _ => '인증 링크를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
           };
         case AuthAction.resendVerificationEmail:
@@ -756,8 +775,8 @@ class NarooFlowController extends ChangeNotifier {
       return switch (action) {
         AuthAction.signup => '회원가입 서버에 연결하지 못했어요. 네트워크 상태를 확인해 주세요.',
         AuthAction.login => '로그인 서버에 연결하지 못했어요. 네트워크 상태를 확인해 주세요.',
-        AuthAction.verifyCode || AuthAction.verifyLink =>
-          '이메일 인증 서버에 연결하지 못했어요. 네트워크 상태를 확인해 주세요.',
+        AuthAction.verifyCode ||
+        AuthAction.verifyLink => '이메일 인증 서버에 연결하지 못했어요. 네트워크 상태를 확인해 주세요.',
         AuthAction.resendVerificationEmail =>
           '인증 메일 서버에 연결하지 못했어요. 네트워크 상태를 확인해 주세요.',
         null => '서버에 연결하지 못했어요. 네트워크와 API 주소를 확인해 주세요.',
@@ -767,8 +786,8 @@ class NarooFlowController extends ChangeNotifier {
     return switch (action) {
       AuthAction.signup => '회원가입을 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
       AuthAction.login => '로그인하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
-      AuthAction.verifyCode || AuthAction.verifyLink =>
-        '이메일 인증을 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+      AuthAction.verifyCode ||
+      AuthAction.verifyLink => '이메일 인증을 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.',
       AuthAction.resendVerificationEmail =>
         '인증 메일을 다시 보내지 못했어요. 잠시 뒤 다시 시도해 주세요.',
       null => '인증 상태를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요.',

@@ -1,6 +1,6 @@
 const backendBaseUrl =
   process.env.NAROO_BACKEND_PROXY_URL ||
-  "https://backend-production-688a6.up.railway.app";
+  "https://api.narooapp.com";
 
 const requestHopByHopHeaders = new Set([
   "connection",

@@ -13,6 +13,7 @@ void main() {
     NarooApp(
       startupError: startupError,
       initialVerificationToken: initialVerificationTokenFromUri(Uri.base),
+      restoreSessionOnStartup: true,
     ),
   );
 }

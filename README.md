@@ -1,5 +1,10 @@
 # Naroo
 
+현재 워크스페이스 구조:
+
+- frontend: 현재 Flutter 앱 저장소
+- backend: `../backend` Spring Boot API 저장소
+
 ## Local Development
 
 Start MySQL and Redis:
