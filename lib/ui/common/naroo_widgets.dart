@@ -66,6 +66,7 @@ class NarooTextField extends StatelessWidget {
     this.keyboardType,
     this.obscureText = false,
     this.textInputAction,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -73,6 +74,7 @@ class NarooTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool obscureText;
   final TextInputAction? textInputAction;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +83,7 @@ class NarooTextField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       textInputAction: textInputAction,
+      onChanged: onChanged,
       decoration: InputDecoration(labelText: label),
     );
   }

@@ -90,9 +90,31 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passwordController = TextEditingController();
   final _nicknameController = TextEditingController();
   late String _mathStatus = widget.mathStatusOptions.last;
+  String? _inlineMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loginIdController.addListener(_clearInlineMessage);
+    _emailController.addListener(_clearInlineMessage);
+    _passwordController.addListener(_clearInlineMessage);
+    _nicknameController.addListener(_clearInlineMessage);
+  }
+
+  @override
+  void didUpdateWidget(covariant AuthScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mode != widget.mode) {
+      _inlineMessage = null;
+    }
+  }
 
   @override
   void dispose() {
+    _loginIdController.removeListener(_clearInlineMessage);
+    _emailController.removeListener(_clearInlineMessage);
+    _passwordController.removeListener(_clearInlineMessage);
+    _nicknameController.removeListener(_clearInlineMessage);
     _loginIdController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -103,6 +125,9 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final isSignup = widget.mode == AuthMode.signup;
+    final statusText = widget.isLoading
+        ? '기록을 확인하는 중...'
+        : widget.errorMessage ?? widget.statusMessage ?? _inlineMessage;
 
     return NarooPage(
       child: ListView(
@@ -120,22 +145,16 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           const SizedBox(height: 24),
           _ModeSwitch(mode: widget.mode, onChanged: widget.onModeChanged),
-          if (widget.isLoading ||
-              widget.errorMessage != null ||
-              widget.statusMessage != null) ...[
+          if (statusText != null) ...[
             const SizedBox(height: 12),
-            Text(
-              widget.isLoading
-                  ? '기록을 확인하는 중...'
-                  : widget.errorMessage ?? widget.statusMessage!,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(statusText, style: Theme.of(context).textTheme.bodyMedium),
           ],
           const SizedBox(height: 24),
           NarooTextField(
             controller: _loginIdController,
             label: 'Login ID',
             textInputAction: TextInputAction.next,
+            onChanged: (_) => _clearInlineMessage(),
           ),
           if (isSignup) ...[
             const SizedBox(height: 12),
@@ -144,6 +163,7 @@ class _AuthScreenState extends State<AuthScreen> {
               label: 'Email',
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
+              onChanged: (_) => _clearInlineMessage(),
             ),
           ],
           const SizedBox(height: 12),
@@ -154,6 +174,7 @@ class _AuthScreenState extends State<AuthScreen> {
             textInputAction: isSignup
                 ? TextInputAction.next
                 : TextInputAction.done,
+            onChanged: (_) => _clearInlineMessage(),
           ),
           if (isSignup) ...[
             const SizedBox(height: 12),
@@ -161,6 +182,7 @@ class _AuthScreenState extends State<AuthScreen> {
               controller: _nicknameController,
               label: 'Nickname',
               textInputAction: TextInputAction.next,
+              onChanged: (_) => _clearInlineMessage(),
             ),
             const SizedBox(height: 16),
             Text('요즘 수학 상태', style: Theme.of(context).textTheme.titleMedium),
@@ -180,19 +202,42 @@ class _AuthScreenState extends State<AuthScreen> {
             onPressed: widget.isLoading
                 ? null
                 : () async {
+                    final loginId = _loginIdController.text.trim();
+                    final password = _passwordController.text;
+
                     if (isSignup) {
+                      final email = _emailController.text.trim();
+                      final nickname = _nicknameController.text.trim();
+                      if (loginId.isEmpty ||
+                          email.isEmpty ||
+                          password.isEmpty ||
+                          nickname.isEmpty) {
+                        setState(() {
+                          _inlineMessage =
+                              '아이디, 이메일, 비밀번호, 닉네임을 모두 입력해 주세요.';
+                        });
+                        return;
+                      }
+                      _clearInlineMessage();
                       await widget.onSignup(
-                        loginId: _loginIdController.text.trim(),
-                        nickname: _nicknameController.text.trim(),
-                        email: _emailController.text.trim(),
-                        password: _passwordController.text,
+                        loginId: loginId,
+                        nickname: nickname,
+                        email: email,
+                        password: password,
                         mathStatus: _mathStatus,
                       );
                       return;
                     }
+                    if (loginId.isEmpty || password.isEmpty) {
+                      setState(() {
+                        _inlineMessage = '아이디와 비밀번호를 입력해 주세요.';
+                      });
+                      return;
+                    }
+                    _clearInlineMessage();
                     await widget.onLogin(
-                      loginId: _loginIdController.text.trim(),
-                      password: _passwordController.text,
+                      loginId: loginId,
+                      password: password,
                     );
                   },
             child: Text(isSignup ? '내 기록 만들기' : '기록 불러오기'),
@@ -200,6 +245,15 @@ class _AuthScreenState extends State<AuthScreen> {
         ],
       ),
     );
+  }
+
+  void _clearInlineMessage() {
+    if (_inlineMessage == null) {
+      return;
+    }
+    setState(() {
+      _inlineMessage = null;
+    });
   }
 }
 
@@ -247,7 +301,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   String? _message;
 
   @override
+  void initState() {
+    super.initState();
+    _tokenController.addListener(_clearMessage);
+  }
+
+  @override
   void dispose() {
+    _tokenController.removeListener(_clearMessage);
     _tokenController.dispose();
     super.dispose();
   }
@@ -291,6 +352,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               controller: _tokenController,
               label: '인증 코드',
               textInputAction: TextInputAction.done,
+              onChanged: (_) => _clearMessage(),
             ),
           ],
           if (showStatusText) ...[
@@ -318,8 +380,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                 : showLinkFailureState && widget.showResendAction
                 ? (widget.isResendCoolingDown ? null : widget.onResend)
                 : () async {
+                    final token = _tokenController.text.trim();
+                    if (token.isEmpty) {
+                      setState(() => _message = '인증 코드를 입력해 주세요.');
+                      return;
+                    }
                     setState(() => _message = '인증을 확인하는 중...');
-                    await widget.onVerify(_tokenController.text.trim());
+                    await widget.onVerify(token);
                   },
             child: Text(
               showLinkFailureState
@@ -355,6 +422,15 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
         ],
       ),
     );
+  }
+
+  void _clearMessage() {
+    if (_message == null) {
+      return;
+    }
+    setState(() {
+      _message = null;
+    });
   }
 }
 
