@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/naroo_flutter/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="naroo_flutter">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>naroo_flutter</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      color-scheme: light;
+    }
+
+    body {
+      margin: 0;
+      background: #f8f6f1;
+      color: #12352d;
+      font-family: "Noto Sans KR", sans-serif;
+    }
+
+    #boot-splash {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(circle at top, rgba(61, 130, 111, 0.12), transparent 35%),
+        #f8f6f1;
+      transition: opacity 180ms ease;
+      z-index: 9999;
+    }
+
+    #boot-splash.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .boot-card {
+      width: min(420px, calc(100vw - 48px));
+      padding: 32px 28px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: 0 20px 60px rgba(18, 53, 45, 0.08);
+      backdrop-filter: blur(10px);
+    }
+
+    .boot-brand {
+      margin: 0 0 16px;
+      color: #2d7a67;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .boot-title {
+      margin: 0 0 10px;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.35;
+      letter-spacing: -0.03em;
+    }
+
+    .boot-copy {
+      margin: 0 0 18px;
+      color: rgba(18, 53, 45, 0.76);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .boot-bar {
+      overflow: hidden;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(45, 122, 103, 0.14);
+    }
+
+    .boot-bar::after {
+      content: "";
+      display: block;
+      width: 40%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2d7a67, #69a996);
+      animation: boot-slide 1.15s ease-in-out infinite;
+    }
+
+    @keyframes boot-slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(260%); }
+    }
+  </style>
+</head>
+<body>
+  <div id="boot-splash" aria-live="polite">
+    <div class="boot-card">
+      <p class="boot-brand">Naroo</p>
+      <p class="boot-title">학습 기록을 불러오는 중이에요.</p>
+      <p class="boot-copy">인증 링크와 저장된 학습 상태를 먼저 확인하고 있어요.</p>
+      <div class="boot-bar"></div>
+    </div>
+  </div>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script>
+    const bootSplash = document.getElementById('boot-splash');
+    const hideBootSplash = () => {
+      if (!bootSplash) return;
+      bootSplash.classList.add('hidden');
+      window.setTimeout(() => bootSplash.remove(), 220);
+    };
+
+    const bootObserver = new MutationObserver(() => {
+      if (document.querySelector('flutter-view')) {
+        hideBootSplash();
+        bootObserver.disconnect();
+      }
+    });
+
+    bootObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+
+    window.addEventListener('flutter-first-frame', hideBootSplash, { once: true });
+    window.setTimeout(hideBootSplash, 8000);
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
