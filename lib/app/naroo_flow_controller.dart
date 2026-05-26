@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../api/api_types.dart';
+import '../domain/diagnostic_concept_copy.dart';
 import '../domain/diagnostic_models.dart';
 import '../domain/learning_models.dart';
 import '../domain/repositories/auth_repository.dart';
@@ -91,11 +92,12 @@ class NarooFlowController extends ChangeNotifier {
     if (result == null) {
       return diagnosticRepository.weakLinks;
     }
-    return result.weakLinks.isEmpty
-        ? [WeakLink(title: result.primaryRecoveryConcept, body: result.summary)]
-        : result.weakLinks
-              .map((link) => WeakLink(title: link, body: result.summary))
-              .toList(growable: false);
+    final links = result.weakLinks.isEmpty
+        ? [result.primaryRecoveryConcept]
+        : result.weakLinks;
+    return links
+        .map((link) => diagnosticWeakLink(link, fallbackBody: result.summary))
+        .toList(growable: false);
   }
 
   RecoveryMission get recoveryMission =>

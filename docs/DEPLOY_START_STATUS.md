@@ -11,10 +11,13 @@
   - Dart package 이름은 `naroo_flutter`
   - release workflow 파일 추가됨:
     - `.github/workflows/flutter-release.yml`
+  - release workflow는 이제 `NAROO_API_BASE_URL`이 없거나 `https://`가 아니면 실패함
 - 백엔드 저장소:
   - 로컬 경로: `../backend`
   - Git remote: `https://github.com/seongj-un/naroo.git`
   - Spring Boot 3.4.x / Java 17 / MySQL / Redis 구조 확인
+  - Railway deploy workflow 추가됨:
+    - `.github/workflows/backend-deploy-railway.yml`
 
 ## 2026-05-25 로컬 QA 결과
 
@@ -56,7 +59,8 @@
 ## 백엔드 저장소 상태
 
 - GitHub Actions workflows:
-  - 없음
+  - `.github/workflows/backend-test.yml`
+  - `.github/workflows/backend-deploy-railway.yml`
 - 배포 플랫폼 설정 파일:
   - `railway.toml` 확인
 - health endpoint:
@@ -81,7 +85,6 @@
 
 - Backend production URL 없음
 - 프론트 저장소 `NAROO_API_BASE_URL` variable 없음
-- 백엔드 저장소 배포 자동화 없음
 - Android signing secret 없음
 
 ## 바로 다음 실행 순서

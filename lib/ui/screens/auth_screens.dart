@@ -137,7 +137,7 @@ class _AuthScreenState extends State<AuthScreen> {
           Text(
             isSignup ? '가벼운 학습 기록 만들기' : '기록 불러오기',
             style: Theme.of(context).textTheme.headlineSmall,
-          ),
+          ).wrapWithHeaderSemantics(),
           const SizedBox(height: 8),
           Text(
             '친구에게 보여줄 점수표를 만들지 않아요.',
@@ -147,7 +147,10 @@ class _AuthScreenState extends State<AuthScreen> {
           _ModeSwitch(mode: widget.mode, onChanged: widget.onModeChanged),
           if (statusText != null) ...[
             const SizedBox(height: 12),
-            Text(statusText, style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              statusText,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ).wrapWithLiveRegion(),
           ],
           const SizedBox(height: 24),
           NarooTextField(
@@ -213,8 +216,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           password.isEmpty ||
                           nickname.isEmpty) {
                         setState(() {
-                          _inlineMessage =
-                              '아이디, 이메일, 비밀번호, 닉네임을 모두 입력해 주세요.';
+                          _inlineMessage = '아이디, 이메일, 비밀번호, 닉네임을 모두 입력해 주세요.';
                         });
                         return;
                       }
@@ -235,10 +237,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       return;
                     }
                     _clearInlineMessage();
-                    await widget.onLogin(
-                      loginId: loginId,
-                      password: password,
-                    );
+                    await widget.onLogin(loginId: loginId, password: password);
                   },
             child: Text(isSignup ? '내 기록 만들기' : '기록 불러오기'),
           ),
@@ -338,7 +337,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
           Text(
             showLinkFailureState ? '인증 링크를 다시 확인해 주세요' : '이메일 확인이 필요해요',
             style: Theme.of(context).textTheme.headlineSmall,
-          ),
+          ).wrapWithHeaderSemantics(),
           const SizedBox(height: 12),
           Text(
             showLinkFailureState
@@ -362,14 +361,14 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                   ? '기록을 확인하는 중...'
                   : widget.errorMessage ?? widget.statusMessage ?? _message!,
               style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            ).wrapWithLiveRegion(),
           ],
           if (showLinkFailureState && widget.errorMessage != null) ...[
             const SizedBox(height: 8),
             Text(
               widget.errorMessage!,
               style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            ).wrapWithLiveRegion(),
           ],
           const SizedBox(height: 24),
           ElevatedButton(
@@ -409,14 +408,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               resendHelpText != null &&
               resendHelpText.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(
-              resendHelpText,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(resendHelpText, style: Theme.of(context).textTheme.bodyMedium),
           ],
           const SizedBox(height: 8),
           TextButton(
-            onPressed: showLinkFailureState ? widget.onUseCodeInstead : widget.onLater,
+            onPressed: showLinkFailureState
+                ? widget.onUseCodeInstead
+                : widget.onLater,
             child: Text(showLinkFailureState ? '인증 코드 직접 입력' : '나중에 다시 시도'),
           ),
         ],
@@ -451,5 +449,15 @@ class _ModeSwitch extends StatelessWidget {
       selected: {mode},
       onSelectionChanged: (value) => onChanged(value.first),
     );
+  }
+}
+
+extension on Widget {
+  Widget wrapWithHeaderSemantics() {
+    return Semantics(header: true, child: this);
+  }
+
+  Widget wrapWithLiveRegion() {
+    return Semantics(container: true, liveRegion: true, child: this);
   }
 }

@@ -106,44 +106,55 @@ class ChoiceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final semanticsLabel = description == null ? label : '$label. $description';
 
-    return Material(
-      color: selected ? const Color(0xFFE7F0EC) : colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(
-          color: selected ? colors.primary : colors.outline,
-          width: selected ? 2 : 1,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: semanticsLabel,
+      child: Material(
+        color: selected ? const Color(0xFFE7F0EC) : colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: selected ? colors.primary : colors.outline,
+            width: selected ? 2 : 1,
+          ),
         ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              Icon(
-                selected ? Icons.check_circle : Icons.circle_outlined,
-                color: selected ? colors.primary : const Color(0xFF8B867A),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: ExcludeSemantics(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    selected ? Icons.check_circle : Icons.circle_outlined,
+                    color: selected ? colors.primary : const Color(0xFF8B867A),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: Theme.of(context).textTheme.bodyLarge,
+                        ),
+                        if (description case final description?) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            description,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: Theme.of(context).textTheme.bodyLarge),
-                    if (description case final description?) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        description,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -160,15 +171,18 @@ class PlainPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.outline),
+    return Semantics(
+      container: true,
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colors.outline),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: child,
       ),
-      padding: const EdgeInsets.all(16),
-      child: child,
     );
   }
 }
@@ -191,22 +205,26 @@ class ActionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.outline),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(body, style: Theme.of(context).textTheme.bodyLarge),
-          const SizedBox(height: 16),
-          ElevatedButton(onPressed: onPressed, child: Text(buttonLabel)),
-        ],
+    return Semantics(
+      container: true,
+      label: '$title. $body',
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: colors.outline),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(body, style: Theme.of(context).textTheme.bodyLarge),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: onPressed, child: Text(buttonLabel)),
+          ],
+        ),
       ),
     );
   }
@@ -219,17 +237,23 @@ class ProgressLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          Icons.bookmark_added_outlined,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
-        ),
-      ],
+    return Semantics(
+      container: true,
+      label: label,
+      child: Row(
+        children: [
+          Icon(
+            Icons.bookmark_added_outlined,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ExcludeSemantics(
+              child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -270,15 +294,25 @@ class FlowStatusOverlay extends StatelessWidget {
                   child: Material(
                     color: Theme.of(context).colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        error,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onErrorContainer,
+                    child: Semantics(
+                      container: true,
+                      liveRegion: true,
+                      label: error,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            error,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onErrorContainer,
+                                ),
+                          ),
                         ),
                       ),
                     ),

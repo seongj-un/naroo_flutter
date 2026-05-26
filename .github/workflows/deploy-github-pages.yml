@@ -20,7 +20,7 @@ jobs:
     name: Build Pages Artifact
     runs-on: ubuntu-latest
     env:
-      NAROO_API_BASE_URL: ${{ vars.NAROO_API_BASE_URL || 'https://backend-production-688a6.up.railway.app' }}
+      NAROO_API_BASE_URL: ${{ vars.NAROO_API_BASE_URL }}
       NAROO_BUILD_PROFILE: ${{ vars.NAROO_BUILD_PROFILE || 'production' }}
 
     steps:
@@ -44,6 +44,20 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Validate release inputs
+        run: |
+          if [ -z "$NAROO_API_BASE_URL" ]; then
+            echo "Missing GitHub Actions variable: NAROO_API_BASE_URL" >&2
+            exit 1
+          fi
+          case "$NAROO_API_BASE_URL" in
+            https://*) ;;
+            *)
+              echo "NAROO_API_BASE_URL must start with https:// for release builds" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Build web
         run: |

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/diagnostic_concept_copy.dart';
 import '../../domain/diagnostic_models.dart';
 import '../../domain/learning_models.dart';
 import '../common/naroo_widgets.dart';
@@ -55,7 +56,10 @@ class WeakLinkResultScreen extends StatelessWidget {
                 Text('첫 복구 미션', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
-                  result.nextMissionTitle ?? '첫 10분 회복 미션',
+                  diagnosticMissionTitleFor(
+                    result.primaryRecoveryConcept,
+                    fallbackTitle: result.nextMissionTitle,
+                  ),
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
               ],

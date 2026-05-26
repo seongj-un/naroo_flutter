@@ -33,6 +33,9 @@ class _DiagnosticQuestionScreenState extends State<DiagnosticQuestionScreen> {
   @override
   Widget build(BuildContext context) {
     final question = widget.question;
+    final regularChoices = question.choices
+        .where((choice) => choice.id != 'unknown')
+        .toList(growable: false);
 
     return NarooPage(
       child: ListView(
@@ -61,7 +64,7 @@ class _DiagnosticQuestionScreenState extends State<DiagnosticQuestionScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          for (final choice in question.choices)
+          for (final choice in regularChoices)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: ChoiceRow(

@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:naroo_flutter/api/api_types.dart' as api_types;
 import 'package:naroo_flutter/app/naroo_dependencies.dart';
 import 'package:naroo_flutter/data/mock_repositories.dart';
+import 'package:naroo_flutter/domain/diagnostic_models.dart';
 import 'package:naroo_flutter/domain/learning_models.dart';
+import 'package:naroo_flutter/domain/repositories/diagnostic_repository.dart';
 import 'package:naroo_flutter/domain/repositories/recovery_repository.dart';
 import 'package:naroo_flutter/domain/repositories/learning_repository.dart';
 import 'package:naroo_flutter/naroo_app.dart';
@@ -405,6 +407,50 @@ void main() {
 
     expect(submittedAnswer, '4');
   });
+
+  testWidgets(
+    'api diagnostic copy hides raw concept keys and unknown duplication',
+    (tester) async {
+      await _setTallPhoneViewport(tester);
+      await tester.pumpWidget(_apiCopyApp());
+
+      await _login(tester);
+      await tester.tap(find.text('시작 위치 고르기'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('함수'));
+      await tester.pumpAndSettle();
+      await _scrollToText(tester, '가볍게 확인하기');
+      await tester.tap(find.text('가볍게 확인하기'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('잘 모르겠어요'), findsOneWidget);
+      expect(find.text('잘 모르겠음'), findsNothing);
+
+      await _scrollToText(tester, '7');
+      await tester.tap(
+        find.ancestor(of: find.text('7'), matching: find.byType(InkWell)).first,
+      );
+      await tester.pumpAndSettle();
+      await _scrollToText(tester, '다음 문항');
+      await tester.tap(find.widgetWithText(ElevatedButton, '다음 문항'));
+      await tester.pumpAndSettle();
+
+      await _scrollToText(tester, '잘 모르겠어요');
+      await tester.tap(
+        find.ancestor(of: find.text('잘 모르겠어요'), matching: find.byType(InkWell)),
+      );
+      await tester.pumpAndSettle();
+      await _scrollToText(tester, '결과 보기');
+      await tester.tap(find.widgetWithText(ElevatedButton, '결과 보기'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('함수값 대입'), findsOneWidget);
+      expect(find.text('일차함수 기울기'), findsOneWidget);
+      expect(find.text('함수값 대입 10분 복구 미션'), findsOneWidget);
+      expect(find.textContaining('function_substitution'), findsNothing);
+      expect(find.textContaining('linear_function_slope'), findsNothing);
+    },
+  );
 }
 
 Widget _mockApp() {
@@ -496,6 +542,17 @@ Widget _savedDiagnosticStartApp() {
       authRepository: MockAuthRepository(),
       learningRepository: _SavedDiagnosticLearningRepository(),
       diagnosticRepository: MockDiagnosticRepository(),
+      recoveryRepository: MockRecoveryRepository(),
+    ),
+  );
+}
+
+Widget _apiCopyApp() {
+  return NarooApp(
+    dependencies: NarooDependencies(
+      authRepository: MockAuthRepository(),
+      learningRepository: MockLearningRepository(),
+      diagnosticRepository: _ApiCopyDiagnosticRepository(),
       recoveryRepository: MockRecoveryRepository(),
     ),
   );
@@ -786,5 +843,84 @@ class _StartupRestoreAuthRepository extends MockAuthRepository {
   @override
   Future<void> reissue() async {
     reissueCalled = true;
+  }
+}
+
+class _ApiCopyDiagnosticRepository implements DiagnosticRepository {
+  static const _questions = [
+    DiagnosticQuestion(
+      id: 'function-substitution-1',
+      concept: '함수',
+      prompt: '함수 y = 2x + 1에서 x가 3일 때 y의 값은?',
+      choices: [
+        AnswerChoice(id: 'a', label: '5'),
+        AnswerChoice(id: 'b', label: '7'),
+        AnswerChoice(id: 'c', label: '9'),
+        AnswerChoice(id: 'unknown', label: '잘 모르겠음'),
+      ],
+    ),
+    DiagnosticQuestion(
+      id: 'function-slope-1',
+      concept: '함수',
+      prompt: '일차함수 y = -3x + 2의 기울기는?',
+      choices: [
+        AnswerChoice(id: 'a', label: '-3'),
+        AnswerChoice(id: 'b', label: '2'),
+        AnswerChoice(id: 'c', label: '3'),
+        AnswerChoice(id: 'unknown', label: '잘 모르겠음'),
+      ],
+    ),
+  ];
+
+  static const _result = DiagnosticResult(
+    diagnosticSessionId: 'api-copy-session',
+    mathArea: 'FUNCTION',
+    status: 'COMPLETED',
+    totalQuestionCount: 2,
+    correctCount: 1,
+    wrongCount: 0,
+    unknownCount: 1,
+    weakLinks: ['function_substitution', 'linear_function_slope'],
+    primaryRecoveryConcept: 'function_substitution',
+    summary:
+        '전체가 무너진 게 아니에요. 다음 10분은 function_substitution 부터 가볍게 다시 시작하면 좋아요.',
+  );
+
+  @override
+  List<DiagnosticQuestion> get questions => _questions;
+
+  @override
+  List<WeakLink> get weakLinks => const [];
+
+  @override
+  Future<void> selectStartingPoint(MathAreaOption mathArea) async {}
+
+  @override
+  Future<DiagnosticSession> createSession() async {
+    return const DiagnosticSession(
+      id: 'api-copy-session',
+      mathArea: 'FUNCTION',
+      status: 'READY',
+    );
+  }
+
+  @override
+  Future<List<DiagnosticQuestion>> getQuestions(
+    String diagnosticSessionId,
+  ) async {
+    return _questions;
+  }
+
+  @override
+  Future<DiagnosticResult> submitAnswers({
+    required String diagnosticSessionId,
+    required Map<String, DiagnosticAnswer> answers,
+  }) async {
+    return _result;
+  }
+
+  @override
+  Future<DiagnosticResult> getResult(String diagnosticSessionId) async {
+    return _result;
   }
 }

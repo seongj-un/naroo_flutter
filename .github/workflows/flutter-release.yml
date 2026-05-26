@@ -43,7 +43,7 @@ jobs:
     needs: test
     if: github.event_name != 'pull_request'
     env:
-      NAROO_API_BASE_URL: ${{ vars.NAROO_API_BASE_URL || 'https://api.narooapp.com' }}
+      NAROO_API_BASE_URL: ${{ vars.NAROO_API_BASE_URL }}
       NAROO_BUILD_PROFILE: ${{ vars.NAROO_BUILD_PROFILE || 'production' }}
 
     steps:
@@ -97,7 +97,7 @@ jobs:
     needs: test
     if: github.event_name != 'pull_request' && secrets.ANDROID_KEYSTORE_BASE64 != '' && secrets.ANDROID_KEYSTORE_PASSWORD != '' && secrets.ANDROID_KEY_ALIAS != '' && secrets.ANDROID_KEY_PASSWORD != ''
     env:
-      NAROO_API_BASE_URL: ${{ vars.NAROO_API_BASE_URL || 'https://api.narooapp.com' }}
+      NAROO_API_BASE_URL: ${{ vars.NAROO_API_BASE_URL }}
       NAROO_BUILD_PROFILE: ${{ vars.NAROO_BUILD_PROFILE || 'production' }}
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
