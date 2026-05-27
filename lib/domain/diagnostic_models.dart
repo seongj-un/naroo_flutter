@@ -69,3 +69,5 @@ class DiagnosticResult {
   final String summary;
   final String? nextMissionTitle;
 }
+
+enum DiagnosticResultTrustFeedbackChoice { feelsRight, unsure }

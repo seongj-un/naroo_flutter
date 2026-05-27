@@ -9,6 +9,7 @@ class DiagnosticQuestionScreen extends StatefulWidget {
     required this.question,
     required this.questionIndex,
     required this.totalQuestions,
+    required this.onShown,
     required this.onBack,
     required this.onSubmit,
   });
@@ -16,6 +17,7 @@ class DiagnosticQuestionScreen extends StatefulWidget {
   final DiagnosticQuestion question;
   final int questionIndex;
   final int totalQuestions;
+  final ValueChanged<DiagnosticQuestion> onShown;
   final VoidCallback onBack;
   final void Function(DiagnosticQuestion question, String? answerId) onSubmit;
 
@@ -29,6 +31,17 @@ class _DiagnosticQuestionScreenState extends State<DiagnosticQuestionScreen> {
   bool _selectedUnknown = false;
 
   bool get _canSubmit => _selectedAnswerId != null || _selectedUnknown;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      widget.onShown(widget.question);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

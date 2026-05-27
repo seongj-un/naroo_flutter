@@ -357,12 +357,14 @@ void main() {
     expect(home.completedMissionCount, 1);
   });
 
-  test('learning repository decodes recovery series completed action', () async {
-    final repository = LearningApiRepository(
-      apiClient: ApiClient(
-        authStore: AuthStore()..updateAccessToken('jwt-token'),
-        httpClient: MockClient((request) async {
-          return _jsonResponse('''
+  test(
+    'learning repository decodes recovery series completed action',
+    () async {
+      final repository = LearningApiRepository(
+        apiClient: ApiClient(
+          authStore: AuthStore()..updateAccessToken('jwt-token'),
+          httpClient: MockClient((request) async {
+            return _jsonResponse('''
           {
             "success": true,
             "data": {
@@ -391,15 +393,16 @@ void main() {
             }
           }
           ''');
-        }),
-      ),
-    );
+          }),
+        ),
+      );
 
-    final home = await repository.getLearningHome();
+      final home = await repository.getLearningHome();
 
-    expect(home.nextAction, LearningNextAction.recoverySeriesCompleted);
-    expect(home.latestMission?.status, 'COMPLETED');
-  });
+      expect(home.nextAction, LearningNextAction.recoverySeriesCompleted);
+      expect(home.latestMission?.status, 'COMPLETED');
+    },
+  );
 
   test('learning repository decodes math areas', () async {
     final repository = LearningApiRepository(
@@ -529,6 +532,101 @@ void main() {
     ]);
     expect(questions.single.choices.single.label, '선택지 A');
     expect(result.primaryRecoveryConcept, 'linear-function');
+  });
+
+  test('diagnostic repository records telemetry and trust feedback', () async {
+    final requests = <http.BaseRequest>[];
+    final repository = DiagnosticApiRepository(
+      apiClient: ApiClient(
+        authStore: AuthStore()..updateAccessToken('jwt-token'),
+        httpClient: MockClient((request) async {
+          requests.add(request);
+
+          if (request.url.path ==
+              '/api/diagnostics/diagnostic-session-id/telemetry') {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            expect(body['questionId'], 'question-id');
+            expect(body['flowVariant'], 'student-web-v1');
+            expect(body['occurredAt'], isA<String>());
+            expect(body['idempotencyKey'], contains('diagnostic-session-id'));
+            return _jsonResponse(
+              '{"success":true,"data":{"outcome":"APPENDED"}}',
+              status: 202,
+            );
+          }
+
+          if (request.url.path ==
+              '/api/diagnostics/diagnostic-session-id/trust-feedback') {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            expect(body['feedbackChoice'], 'FEELS_RIGHT');
+            expect(
+              body['idempotencyKey'],
+              'trust-feedback:diagnostic-session-id:feelsRight',
+            );
+            expect(body['occurredAt'], isA<String>());
+            expect(body['flowVariant'], 'student-web-v1');
+            expect(body['resultCopyVersion'], 'result-copy-v1');
+            return _jsonResponse(
+              '{"success":true,"data":{"outcome":"APPENDED"}}',
+              status: 202,
+            );
+          }
+
+          fail('Unexpected request: ${request.url.path}');
+        }),
+      ),
+    );
+
+    const question = DiagnosticQuestion(
+      id: 'question-id',
+      concept: '함수',
+      prompt: '문제 내용',
+      choices: [AnswerChoice(id: 'a', label: '선택지 A')],
+    );
+
+    await repository.recordQuestionShown(
+      diagnosticSessionId: 'diagnostic-session-id',
+      question: question,
+      questionIndex: 0,
+      flowVariant: 'student-web-v1',
+    );
+    await repository.recordAnswerSelected(
+      diagnosticSessionId: 'diagnostic-session-id',
+      question: question,
+      answer: const DiagnosticAnswer.unknown(),
+      questionIndex: 0,
+      flowVariant: 'student-web-v1',
+    );
+    await repository.recordSessionAbandoned(
+      diagnosticSessionId: 'diagnostic-session-id',
+      question: question,
+      questionIndex: 0,
+      flowVariant: 'student-web-v1',
+    );
+    await repository.submitResultTrustFeedback(
+      diagnosticSessionId: 'diagnostic-session-id',
+      feedbackChoice: DiagnosticResultTrustFeedbackChoice.feelsRight,
+      flowVariant: 'student-web-v1',
+      resultCopyVersion: 'result-copy-v1',
+    );
+
+    expect(requests.map((request) => request.url.path), [
+      '/api/diagnostics/diagnostic-session-id/telemetry',
+      '/api/diagnostics/diagnostic-session-id/telemetry',
+      '/api/diagnostics/diagnostic-session-id/telemetry',
+      '/api/diagnostics/diagnostic-session-id/trust-feedback',
+    ]);
+    final telemetryBodies = requests
+        .take(3)
+        .cast<http.Request>()
+        .map((request) => jsonDecode(request.body) as Map<String, dynamic>)
+        .toList(growable: false);
+    expect(telemetryBodies.map((body) => body['eventType']), [
+      'QUESTION_SHOWN',
+      'ANSWER_SELECTED',
+      'SESSION_ABANDONED',
+    ]);
+    expect(telemetryBodies[1]['selectedChoiceId'], 'unknown');
   });
 
   test('recovery repository creates and submits mission', () async {

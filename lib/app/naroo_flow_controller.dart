@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../api/api_types.dart';
+import 'diagnostic_telemetry_tracker.dart';
 import '../domain/diagnostic_concept_copy.dart';
 import '../domain/diagnostic_models.dart';
 import '../domain/learning_models.dart';
@@ -39,12 +40,14 @@ class NarooFlowController extends ChangeNotifier {
     required this.learningRepository,
     required this.diagnosticRepository,
     required this.recoveryRepository,
+    required this.diagnosticTelemetryTracker,
   });
 
   final AuthRepository authRepository;
   final LearningRepository learningRepository;
   final DiagnosticRepository diagnosticRepository;
   final RecoveryRepository recoveryRepository;
+  final DiagnosticTelemetryTracker diagnosticTelemetryTracker;
 
   NarooStage stage = NarooStage.entry;
   AuthMode authMode = AuthMode.signup;
@@ -59,10 +62,12 @@ class NarooFlowController extends ChangeNotifier {
   List<MathAreaOption> _mathAreas = const [];
   List<DiagnosticQuestion> _diagnosticQuestions = [];
   DiagnosticResult? diagnosticResult;
+  DiagnosticResultTrustFeedbackChoice? resultTrustFeedbackChoice;
   RecoveryMission? activeRecoveryMission;
   RecoveryMission? latestRecoveryMission;
   RecoverySubmissionFeedback? recoveryFeedback;
   bool missionCompleted = false;
+  bool isResultTrustFeedbackBusy = false;
   bool emailVerified = false;
   int completedMissionCount = 0;
   int inProgressMissionCount = 0;
@@ -76,7 +81,9 @@ class NarooFlowController extends ChangeNotifier {
   String? authErrorMessage;
   String? authStatusMessage;
   String? flowErrorMessage;
+  String? resultTrustFeedbackMessage;
   AuthAction? _currentAuthAction;
+  final Set<String> _shownDiagnosticQuestionKeys = <String>{};
 
   List<String> get mathStatusOptions => learningRepository.mathStatusOptions;
 
@@ -448,6 +455,9 @@ class NarooFlowController extends ChangeNotifier {
       currentQuestionIndex = 0;
       diagnosticAnswers.clear();
       diagnosticResult = null;
+      resultTrustFeedbackChoice = null;
+      resultTrustFeedbackMessage = null;
+      _shownDiagnosticQuestionKeys.clear();
       activeRecoveryMission = null;
       latestRecoveryMission = null;
       recoveryFeedback = null;
@@ -467,28 +477,75 @@ class NarooFlowController extends ChangeNotifier {
   }
 
   void backToStartingPoint() {
+    final sessionId = diagnosticSessionId;
+    if (sessionId != null &&
+        diagnosticResult == null &&
+        _diagnosticQuestions.isNotEmpty &&
+        currentQuestionIndex < _diagnosticQuestions.length) {
+      final question = _diagnosticQuestions[currentQuestionIndex];
+      unawaited(
+        diagnosticTelemetryTracker.recordSessionAbandoned(
+          diagnosticSessionId: sessionId,
+          question: question,
+          questionIndex: currentQuestionIndex,
+        ),
+      );
+    }
     stage = NarooStage.startingPoint;
     notifyListeners();
+  }
+
+  void markDiagnosticQuestionShown(DiagnosticQuestion question) {
+    final sessionId = diagnosticSessionId;
+    if (sessionId == null) {
+      return;
+    }
+    final questionKey = '${currentQuestionIndex + 1}:${question.id}';
+    if (!_shownDiagnosticQuestionKeys.add(questionKey)) {
+      return;
+    }
+    unawaited(
+      diagnosticTelemetryTracker.recordQuestionShown(
+        diagnosticSessionId: sessionId,
+        question: question,
+        questionIndex: currentQuestionIndex,
+      ),
+    );
   }
 
   Future<void> submitDiagnosticAnswer(
     DiagnosticQuestion question,
     String? answerId,
   ) async {
-    diagnosticAnswers[question.id] = answerId == null
+    final answer = answerId == null
         ? const DiagnosticAnswer.unknown()
         : DiagnosticAnswer.selected(answerId);
+    diagnosticAnswers[question.id] = answer;
+
+    final sessionId = diagnosticSessionId;
+    if (sessionId != null) {
+      unawaited(
+        diagnosticTelemetryTracker.recordAnswerSelected(
+          diagnosticSessionId: sessionId,
+          question: question,
+          answer: answer,
+          questionIndex: currentQuestionIndex,
+        ),
+      );
+    }
 
     if (currentQuestionIndex == diagnosticQuestions.length - 1) {
       await _runFlowAction(() async {
-        final sessionId = diagnosticSessionId;
-        if (sessionId == null) {
+        final activeSessionId = diagnosticSessionId;
+        if (activeSessionId == null) {
           throw StateError('Diagnostic session is missing.');
         }
         diagnosticResult = await diagnosticRepository.submitAnswers(
-          diagnosticSessionId: sessionId,
+          diagnosticSessionId: activeSessionId,
           answers: diagnosticAnswers,
         );
+        resultTrustFeedbackChoice = null;
+        resultTrustFeedbackMessage = null;
         stage = NarooStage.result;
       });
     } else {
@@ -500,6 +557,33 @@ class NarooFlowController extends ChangeNotifier {
   void goToResult() {
     stage = NarooStage.result;
     notifyListeners();
+  }
+
+  Future<void> submitResultTrustFeedback(
+    DiagnosticResultTrustFeedbackChoice feedbackChoice,
+  ) async {
+    final result = diagnosticResult;
+    if (result == null || isResultTrustFeedbackBusy) {
+      return;
+    }
+
+    isResultTrustFeedbackBusy = true;
+    resultTrustFeedbackMessage = null;
+    notifyListeners();
+
+    try {
+      await diagnosticTelemetryTracker.submitResultTrustFeedback(
+        diagnosticSessionId: result.diagnosticSessionId,
+        feedbackChoice: feedbackChoice,
+      );
+      resultTrustFeedbackChoice = feedbackChoice;
+      resultTrustFeedbackMessage = null;
+    } catch (_) {
+      resultTrustFeedbackMessage = '지금은 기록하지 못했어요. 잠시 뒤 다시 눌러도 괜찮아요.';
+    } finally {
+      isResultTrustFeedbackBusy = false;
+      notifyListeners();
+    }
   }
 
   Future<void> openHomePrimaryAction() {
@@ -634,10 +718,14 @@ class NarooFlowController extends ChangeNotifier {
         primaryRecoveryConcept: latestDiagnostic.primaryRecoveryConcept,
         summary: latestDiagnostic.summary,
       );
+      resultTrustFeedbackChoice = null;
+      resultTrustFeedbackMessage = null;
     } else {
       selectedMathAreaCode = null;
       diagnosticSessionId = null;
       diagnosticResult = null;
+      resultTrustFeedbackChoice = null;
+      resultTrustFeedbackMessage = null;
     }
 
     missionCompleted =
@@ -665,6 +753,8 @@ class NarooFlowController extends ChangeNotifier {
     diagnosticResult = await diagnosticRepository.getResult(sessionId);
     selectedMathAreaCode = diagnosticResult!.mathArea;
     startingPoint = _mathAreaLabel(diagnosticResult!.mathArea);
+    resultTrustFeedbackChoice = null;
+    resultTrustFeedbackMessage = null;
   }
 
   Future<void> _createRecoveryMission() async {

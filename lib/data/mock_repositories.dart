@@ -168,6 +168,39 @@ class MockDiagnosticRepository implements DiagnosticRepository {
       answers: const {},
     );
   }
+
+  @override
+  Future<void> recordQuestionShown({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  }) async {}
+
+  @override
+  Future<void> recordAnswerSelected({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required DiagnosticAnswer answer,
+    required int questionIndex,
+    String? flowVariant,
+  }) async {}
+
+  @override
+  Future<void> recordSessionAbandoned({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  }) async {}
+
+  @override
+  Future<void> submitResultTrustFeedback({
+    required String diagnosticSessionId,
+    required DiagnosticResultTrustFeedbackChoice feedbackChoice,
+    String? flowVariant,
+    String? resultCopyVersion,
+  }) async {}
 }
 
 class MockRecoveryRepository implements RecoveryRepository {

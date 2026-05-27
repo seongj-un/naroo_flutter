@@ -114,6 +114,103 @@ class DiagnosticApiRepository implements DiagnosticRepository {
     );
   }
 
+  @override
+  Future<void> recordQuestionShown({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  }) {
+    return _recordTelemetry(
+      diagnosticSessionId: diagnosticSessionId,
+      eventType: 'QUESTION_SHOWN',
+      questionId: question.id,
+      questionIndex: questionIndex,
+      flowVariant: flowVariant,
+    );
+  }
+
+  @override
+  Future<void> recordAnswerSelected({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required DiagnosticAnswer answer,
+    required int questionIndex,
+    String? flowVariant,
+  }) {
+    return _recordTelemetry(
+      diagnosticSessionId: diagnosticSessionId,
+      eventType: 'ANSWER_SELECTED',
+      questionId: question.id,
+      questionIndex: questionIndex,
+      selectedChoiceId: answer.isUnknown ? 'unknown' : answer.answerId,
+      flowVariant: flowVariant,
+    );
+  }
+
+  @override
+  Future<void> recordSessionAbandoned({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  }) {
+    return _recordTelemetry(
+      diagnosticSessionId: diagnosticSessionId,
+      eventType: 'SESSION_ABANDONED',
+      questionId: question.id,
+      questionIndex: questionIndex,
+      flowVariant: flowVariant,
+    );
+  }
+
+  @override
+  Future<void> submitResultTrustFeedback({
+    required String diagnosticSessionId,
+    required DiagnosticResultTrustFeedbackChoice feedbackChoice,
+    String? flowVariant,
+    String? resultCopyVersion,
+  }) {
+    return apiClient.post(
+      '/api/diagnostics/$diagnosticSessionId/trust-feedback',
+      body: {
+        'feedbackChoice': switch (feedbackChoice) {
+          DiagnosticResultTrustFeedbackChoice.feelsRight => 'FEELS_RIGHT',
+          DiagnosticResultTrustFeedbackChoice.unsure => 'UNSURE',
+        },
+        'idempotencyKey':
+            'trust-feedback:$diagnosticSessionId:${feedbackChoice.name}',
+        'occurredAt': DateTime.now().toUtc().toIso8601String(),
+        if (flowVariant != null) 'flowVariant': flowVariant,
+        if (resultCopyVersion != null) 'resultCopyVersion': resultCopyVersion,
+      },
+      decode: (_) {},
+    );
+  }
+
+  Future<void> _recordTelemetry({
+    required String diagnosticSessionId,
+    required String eventType,
+    required String questionId,
+    required int questionIndex,
+    String? selectedChoiceId,
+    String? flowVariant,
+  }) {
+    return apiClient.post(
+      '/api/diagnostics/$diagnosticSessionId/telemetry',
+      body: {
+        'eventType': eventType,
+        'questionId': questionId,
+        'idempotencyKey':
+            '${eventType.toLowerCase()}:$diagnosticSessionId:${questionIndex + 1}:$questionId',
+        'occurredAt': DateTime.now().toUtc().toIso8601String(),
+        if (selectedChoiceId != null) 'selectedChoiceId': selectedChoiceId,
+        if (flowVariant != null) 'flowVariant': flowVariant,
+      },
+      decode: (_) {},
+    );
+  }
+
   String _mathAreaLabel(String mathArea) {
     return switch (mathArea) {
       'EQUATION' => '방정식',

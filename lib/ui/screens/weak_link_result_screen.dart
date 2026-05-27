@@ -12,15 +12,26 @@ class WeakLinkResultScreen extends StatelessWidget {
     required this.weakLinks,
     required this.onStartRecovery,
     required this.onSaveForLater,
+    required this.onTrustFeedbackSelected,
+    required this.selectedTrustFeedbackChoice,
+    required this.isSubmittingTrustFeedback,
+    this.trustFeedbackMessage,
   });
 
   final DiagnosticResult result;
   final List<WeakLink> weakLinks;
   final VoidCallback onStartRecovery;
   final VoidCallback onSaveForLater;
+  final ValueChanged<DiagnosticResultTrustFeedbackChoice>
+  onTrustFeedbackSelected;
+  final DiagnosticResultTrustFeedbackChoice? selectedTrustFeedbackChoice;
+  final bool isSubmittingTrustFeedback;
+  final String? trustFeedbackMessage;
 
   @override
   Widget build(BuildContext context) {
+    final trustPromptText = '이 시작 위치가 지금 나한테 맞는 편이었나요?';
+
     return NarooPage(
       child: ListView(
         children: [
@@ -30,7 +41,21 @@ class WeakLinkResultScreen extends StatelessWidget {
             '전체가 무너진 게 아니에요. 여기부터 다시 연결하면 돼요.',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          Text(
+            '지금은 가장 먼저 다시 연결할 한 지점만 잡으면 충분해요.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 24),
+          Text('약한 연결', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          for (final weakLink in weakLinks) ...[
+            WeakLinkRow(title: weakLink.title, body: weakLink.body),
+            const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 16),
+          Text('빠른 요약', style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -41,13 +66,6 @@ class WeakLinkResultScreen extends StatelessWidget {
               StatPill(label: '모름', value: '${result.unknownCount}'),
             ],
           ),
-          const SizedBox(height: 24),
-          Text('약한 연결', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          for (final weakLink in weakLinks) ...[
-            WeakLinkRow(title: weakLink.title, body: weakLink.body),
-            const SizedBox(height: 8),
-          ],
           const SizedBox(height: 24),
           PlainPanel(
             child: Column(
@@ -74,6 +92,63 @@ class WeakLinkResultScreen extends StatelessWidget {
           TextButton(
             onPressed: onSaveForLater,
             child: const Text('결과 저장하고 나중에 하기'),
+          ),
+          const SizedBox(height: 12),
+          PlainPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trustPromptText,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 12),
+                if (selectedTrustFeedbackChoice == null) ...[
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('꽤 맞아요'),
+                        selected: false,
+                        onSelected: isSubmittingTrustFeedback
+                            ? null
+                            : (_) => onTrustFeedbackSelected(
+                                DiagnosticResultTrustFeedbackChoice.feelsRight,
+                              ),
+                      ),
+                      ChoiceChip(
+                        label: const Text('애매해요'),
+                        selected: false,
+                        onSelected: isSubmittingTrustFeedback
+                            ? null
+                            : (_) => onTrustFeedbackSelected(
+                                DiagnosticResultTrustFeedbackChoice.unsure,
+                              ),
+                      ),
+                    ],
+                  ),
+                  if (isSubmittingTrustFeedback) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '기록하는 중...',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ] else ...[
+                  Text(switch (selectedTrustFeedbackChoice!) {
+                    DiagnosticResultTrustFeedbackChoice.feelsRight =>
+                      '답해줘서 고마워요. 이 시작 위치가 맞았다는 기록을 남겨둘게요.',
+                    DiagnosticResultTrustFeedbackChoice.unsure =>
+                      '답해줘서 고마워요. 이 결과가 애매했다는 기록을 남겨둘게요.',
+                  }, style: Theme.of(context).textTheme.bodyMedium),
+                ],
+                if (trustFeedbackMessage case final message?) ...[
+                  const SizedBox(height: 12),
+                  Text(message, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ],
+            ),
           ),
         ],
       ),

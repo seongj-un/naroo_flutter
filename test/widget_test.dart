@@ -240,6 +240,110 @@ void main() {
   });
 
   testWidgets(
+    'diagnostic telemetry is recorded while moving through questions',
+    (tester) async {
+      final repository = _TrackingDiagnosticRepository();
+
+      await _setTallPhoneViewport(tester);
+      await tester.pumpWidget(_trackingApp(repository));
+
+      await _login(tester);
+      await tester.tap(find.text('시작 위치 고르기'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('함수'));
+      await tester.pumpAndSettle();
+      await _scrollToText(tester, '가볍게 확인하기');
+      await tester.tap(find.text('가볍게 확인하기'));
+      await tester.pumpAndSettle();
+
+      expect(repository.shownQuestionIds, ['graph_1']);
+
+      await _scrollToText(tester, '일차함수처럼 일정하게 증가해요');
+      await tester.tap(
+        find.ancestor(
+          of: find.text('일차함수처럼 일정하게 증가해요'),
+          matching: find.byType(InkWell),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await _scrollToText(tester, '다음 문항');
+      await tester.tap(find.widgetWithText(ElevatedButton, '다음 문항'));
+      await tester.pumpAndSettle();
+
+      expect(repository.selectedAnswers, ['linear_up']);
+      expect(repository.shownQuestionIds, ['graph_1', 'graph_2']);
+
+      await tester.tap(find.byTooltip('돌아가기'));
+      await tester.pumpAndSettle();
+
+      expect(repository.abandonedQuestionIds, ['graph_2']);
+    },
+  );
+
+  testWidgets('result trust feedback records one-tap response', (tester) async {
+    final repository = _TrackingDiagnosticRepository();
+
+    await _setTallPhoneViewport(tester);
+    await tester.pumpWidget(_trackingApp(repository));
+
+    await _login(tester);
+    await tester.tap(find.text('시작 위치 고르기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('함수'));
+    await tester.pumpAndSettle();
+    await _scrollToText(tester, '가볍게 확인하기');
+    await tester.tap(find.text('가볍게 확인하기'));
+    await tester.pumpAndSettle();
+
+    await _scrollToText(tester, '일차함수처럼 일정하게 증가해요');
+    await tester.tap(
+      find.ancestor(
+        of: find.text('일차함수처럼 일정하게 증가해요'),
+        matching: find.byType(InkWell),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _scrollToText(tester, '다음 문항');
+    await tester.tap(find.widgetWithText(ElevatedButton, '다음 문항'));
+    await tester.pumpAndSettle();
+
+    await _scrollToText(tester, '잘 모르겠어요');
+    await tester.tap(
+      find.ancestor(of: find.text('잘 모르겠어요'), matching: find.byType(InkWell)),
+    );
+    await tester.pumpAndSettle();
+    await _scrollToText(tester, '다음 문항');
+    await tester.tap(find.widgetWithText(ElevatedButton, '다음 문항'));
+    await tester.pumpAndSettle();
+
+    await _scrollToText(tester, '1을 지나요');
+    await tester.tap(
+      find.ancestor(of: find.text('1을 지나요'), matching: find.byType(InkWell)),
+    );
+    await tester.pumpAndSettle();
+    await _scrollToText(tester, '결과 보기');
+    await tester.tap(find.widgetWithText(ElevatedButton, '결과 보기'));
+    await tester.pumpAndSettle();
+
+    final feelsRightChip = find.widgetWithText(ChoiceChip, '꽤 맞아요');
+    await tester.scrollUntilVisible(
+      feelsRightChip,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(feelsRightChip);
+    await tester.pumpAndSettle();
+    await tester.tap(feelsRightChip);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('답해줘서 고마워요.'), findsOneWidget);
+    expect(repository.trustFeedbackChoices, [
+      DiagnosticResultTrustFeedbackChoice.feelsRight,
+    ]);
+    expect(find.text('꽤 맞아요'), findsNothing);
+  });
+
+  testWidgets(
     'completed recovery mission returns feedback instead of reopening mission form',
     (tester) async {
       await _setTallPhoneViewport(tester);
@@ -922,5 +1026,98 @@ class _ApiCopyDiagnosticRepository implements DiagnosticRepository {
   @override
   Future<DiagnosticResult> getResult(String diagnosticSessionId) async {
     return _result;
+  }
+
+  @override
+  Future<void> recordQuestionShown({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  }) async {}
+
+  @override
+  Future<void> recordAnswerSelected({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required DiagnosticAnswer answer,
+    required int questionIndex,
+    String? flowVariant,
+  }) async {}
+
+  @override
+  Future<void> recordSessionAbandoned({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  }) async {}
+
+  @override
+  Future<void> submitResultTrustFeedback({
+    required String diagnosticSessionId,
+    required DiagnosticResultTrustFeedbackChoice feedbackChoice,
+    String? flowVariant,
+    String? resultCopyVersion,
+  }) async {}
+}
+
+Widget _trackingApp(_TrackingDiagnosticRepository repository) {
+  return NarooApp(
+    dependencies: NarooDependencies(
+      authRepository: MockAuthRepository(),
+      learningRepository: MockLearningRepository(),
+      diagnosticRepository: repository,
+      recoveryRepository: MockRecoveryRepository(),
+    ),
+  );
+}
+
+class _TrackingDiagnosticRepository extends MockDiagnosticRepository {
+  final List<String> shownQuestionIds = <String>[];
+  final List<String> selectedAnswers = <String>[];
+  final List<String> abandonedQuestionIds = <String>[];
+  final List<DiagnosticResultTrustFeedbackChoice> trustFeedbackChoices =
+      <DiagnosticResultTrustFeedbackChoice>[];
+
+  @override
+  Future<void> recordQuestionShown({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  }) async {
+    shownQuestionIds.add(question.id);
+  }
+
+  @override
+  Future<void> recordAnswerSelected({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required DiagnosticAnswer answer,
+    required int questionIndex,
+    String? flowVariant,
+  }) async {
+    selectedAnswers.add(answer.answerId ?? 'unknown');
+  }
+
+  @override
+  Future<void> recordSessionAbandoned({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  }) async {
+    abandonedQuestionIds.add(question.id);
+  }
+
+  @override
+  Future<void> submitResultTrustFeedback({
+    required String diagnosticSessionId,
+    required DiagnosticResultTrustFeedbackChoice feedbackChoice,
+    String? flowVariant,
+    String? resultCopyVersion,
+  }) async {
+    trustFeedbackChoices.add(feedbackChoice);
   }
 }

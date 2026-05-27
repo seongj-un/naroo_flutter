@@ -18,4 +18,33 @@ abstract interface class DiagnosticRepository {
   });
 
   Future<DiagnosticResult> getResult(String diagnosticSessionId);
+
+  Future<void> recordQuestionShown({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  });
+
+  Future<void> recordAnswerSelected({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required DiagnosticAnswer answer,
+    required int questionIndex,
+    String? flowVariant,
+  });
+
+  Future<void> recordSessionAbandoned({
+    required String diagnosticSessionId,
+    required DiagnosticQuestion question,
+    required int questionIndex,
+    String? flowVariant,
+  });
+
+  Future<void> submitResultTrustFeedback({
+    required String diagnosticSessionId,
+    required DiagnosticResultTrustFeedbackChoice feedbackChoice,
+    String? flowVariant,
+    String? resultCopyVersion,
+  });
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../ui/common/naroo_widgets.dart';
 import '../ui/screens/auth_screens.dart';
 import '../ui/screens/learning_screens.dart';
+import 'diagnostic_telemetry_tracker.dart';
 import 'naroo_dependencies.dart';
 import 'naroo_flow_controller.dart';
 
@@ -33,6 +34,9 @@ class _NarooShellState extends State<NarooShell> {
       learningRepository: widget.dependencies.learningRepository,
       diagnosticRepository: widget.dependencies.diagnosticRepository,
       recoveryRepository: widget.dependencies.recoveryRepository,
+      diagnosticTelemetryTracker: DiagnosticTelemetryTracker(
+        diagnosticRepository: widget.dependencies.diagnosticRepository,
+      ),
     );
     final initialVerificationToken = widget.initialVerificationToken;
     if (initialVerificationToken != null &&
@@ -121,6 +125,7 @@ class _NarooShellState extends State<NarooShell> {
             question: _controller.currentQuestion,
             questionIndex: _controller.currentQuestionIndex,
             totalQuestions: _controller.diagnosticQuestions.length,
+            onShown: _controller.markDiagnosticQuestionShown,
             onBack: _controller.backToStartingPoint,
             onSubmit: (question, answerId) {
               _controller.submitDiagnosticAnswer(question, answerId);
@@ -133,6 +138,10 @@ class _NarooShellState extends State<NarooShell> {
               _controller.startRecoveryMission();
             },
             onSaveForLater: _controller.goToSavedProgress,
+            selectedTrustFeedbackChoice: _controller.resultTrustFeedbackChoice,
+            isSubmittingTrustFeedback: _controller.isResultTrustFeedbackBusy,
+            trustFeedbackMessage: _controller.resultTrustFeedbackMessage,
+            onTrustFeedbackSelected: _controller.submitResultTrustFeedback,
           ),
           NarooStage.recoveryMission => RecoveryMissionScreen(
             mission: _controller.recoveryMission,
