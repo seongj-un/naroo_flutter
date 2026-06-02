@@ -141,20 +141,7 @@
       window.setTimeout(() => bootSplash.remove(), 220);
     };
 
-    const bootObserver = new MutationObserver(() => {
-      if (document.querySelector('flutter-view')) {
-        hideBootSplash();
-        bootObserver.disconnect();
-      }
-    });
-
-    bootObserver.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-    });
-
     window.addEventListener('flutter-first-frame', hideBootSplash, { once: true });
-    window.setTimeout(hideBootSplash, 8000);
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
